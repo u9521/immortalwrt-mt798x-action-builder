@@ -2,7 +2,7 @@
 
 A modular, production-grade Python orchestration CLI (`iwb`) and GitHub Actions build framework for building **official ImmortalWrt** and customized OpenWrt/ImmortalWrt router firmwares.
 
-Re-architected and patterned after [Android-Kernel-Builder](https://github.com/u9521/Android-Kernel-Builder) with a pure Python 3.11+ standard library implementation, declarative TOML target configuration system, multi-stage DIY patch pipeline, and GitHub Actions CI automation.
+Re-architected and patterned after [Android-Kernel-Builder](https://github.com/u9521/Android-Kernel-Builder) with a pure Python 3.14+ standard library implementation, declarative TOML target configuration system, dynamic Python patch plugin system, fragment configurations, and GitHub Actions CI automation.
 
 ---
 
@@ -10,12 +10,14 @@ Re-architected and patterned after [Android-Kernel-Builder](https://github.com/u
 
 - **Official ImmortalWrt Native Support**: Build directly from official [`immortalwrt/immortalwrt`](https://github.com/immortalwrt/immortalwrt) (`master`, `openwrt-24.10`, `openwrt-23.05`) as well as vendor trees (e.g. `hanwckf/immortalwrt-mt798x`).
 - **Declarative TOML Targets with Inheritance**: Define router targets concisely with `extends` inheritance, default templates (`base = true`), deep table merging, and strict schema validation.
-- **Feeds & Multi-Stage DIY Pipeline**:
-  - Pre-feeds hooks (`pre_feeds_scripts`) to inject custom package feeds before `scripts/feeds update`.
-  - Automated feed updates and package installation (`scripts/feeds update -a && ./scripts/feeds install -a`).
-  - Post-feeds hooks (`post_feeds_scripts`) and builtin Python patch helpers (LAN IP, hostname, Wi-Fi SSID, LuCI Argon theme, sysctl tuning, `rc.local`).
+- **Defconfig Management**: Supports minimal defconfig files generated with OpenWrt's native `./scripts/diffconfig.sh` or full configurations.
+- **Pure Python Patch Plugins (`importlib`)**:
+  - Customizations are implemented as Python patch scripts in `immortalwrt_builder/configs/patchs/`.
+  - Rich `PatchContext` provides full access to target configuration (`context.target`), source tree path helpers, file reading/writing/appending, string and regex replacements, directory removals, and command execution.
+  - Multi-stage hooks: `pre_feeds_patches`, `post_feeds_patches`, `post_config_patches`.
+- **Transparent ccache Acceleration**: Automatically prepends symlink compiler wrappers (`gcc`, `g++`, `clang`, etc.) to `PATH` without modifying `.config`.
 - **Host & CI First**: Runs cleanly in local Linux / WSL host environments and GitHub Actions runners without container lock-in.
-- **Zero Runtime Dependencies**: Written entirely in pure Python 3.11+ standard library (`tomllib`, `pathlib`, `dataclasses`, `argparse`, `hashlib`, `json`, `subprocess`, `shutil`).
+- **Zero Runtime Dependencies**: Written entirely in pure Python 3.14+ standard library (`tomllib`, `pathlib`, `dataclasses`, `argparse`, `hashlib`, `json`, `subprocess`, `shutil`, `importlib`).
 - **Automated Digest & Release**: Computes MD5 and SHA256 checksums for all generated firmwares and generates markdown tables for GitHub Step Summaries and GitHub Releases.
 
 ---
@@ -39,7 +41,7 @@ immortalwrt-action-builder/
 │   │       ├── config/                    # TOML loader, inheritance, schema, validator
 │   │       ├── sync/                      # Git clone, shallow sync, commit comparison
 │   │       ├── feeds/                     # Feeds configuration & installation
-│   │       ├── patch/                     # DIY scripts & builtin patches
+│   │       ├── patch/                     # Python patch interface (PatchContext) & importlib executor
 │   │       └── build/                     # OpenWrt make engine & output digest collector
 │   ├── configs/
 │   │   ├── global.toml                    # Global build settings
@@ -48,25 +50,24 @@ immortalwrt-action-builder/
 │   │   │   ├── official-mt7981-ax3000m.toml # MediaTek Filogic MT7981 (AX3000M / RAX3000M)
 │   │   │   ├── official-x86-64.toml       # x86_64 UEFI/GPT router target
 │   │   │   ├── official-generic.toml      # Generic official target
-│   │   │   └── uluawrt-mt7981-ax3000m.toml # Custom MT7981 with DIY scripts
-│   │   ├── defconfigs/                    # OpenWrt .config templates (*.config)
-│   │   └── diy/                           # DIY shell/Python patch scripts (*.sh, *.py)
+│   │   │   └── uluawrt-mt7981-ax3000m.toml # Custom MT7981 with Python patches
+│   │   ├── defconfigs/                    # OpenWrt .config & fragment templates (*.config)
+│   │   └── patchs/                        # Python patch plugins (*.py)
 │   ├── scripts/
 │   │   ├── install-deps.sh                # Host/CI system build dependencies installer
 │   │   └── write-ci-build-summary.py      # GitHub Step Summary markdown writer
 │   ├── docs/                              # Reference documentation
-│   └── tests/                             # Full unittest test suite (30+ tests)
+│   └── tests/                             # Full unittest test suite
 └── .github/
     └── workflows/
-        ├── build.yml                      # Parameterized firmware build workflow
-        └── test.yml                       # Automated test suite workflow
+        └── build.yml                      # Parameterized firmware build workflow
 ```
 
 ---
 
 ## Setup & Quick Start
 
-Requires **Python 3.11+** and [uv](https://docs.astral.sh/uv/).
+Requires **Python 3.14+** and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 # 1. Install uv (if not already installed)
@@ -99,14 +100,15 @@ sudo ./immortalwrt_builder/scripts/install-deps.sh
 |:---|:---|:---|
 | `iwb show-target` | Display resolved target configuration | `uv run iwb show-target --target official-mt7981-ax3000m` |
 | `iwb sync-source` | Clone or update target source code | `uv run iwb sync-source --target official-mt7981-ax3000m` |
-| `iwb setup-feeds` | Update & install feeds, apply DIY hooks | `uv run iwb setup-feeds --target official-mt7981-ax3000m` |
-| `iwb configure` | Apply defconfig & run `make defconfig` | `uv run iwb configure --target official-mt7981-ax3000m` |
+| `iwb setup-feeds` | Update & install feeds, apply pre/post patches | `uv run iwb setup-feeds --target official-mt7981-ax3000m` |
+| `iwb configure` | Apply defconfig & post-config patches | `uv run iwb configure --target official-mt7981-ax3000m` |
 | `iwb download` | Pre-download packages (`make download`) | `uv run iwb download --target official-mt7981-ax3000m -j$(nproc)` |
 | `iwb build` | Build firmware (`make -jN`) | `uv run iwb build --target official-mt7981-ax3000m -j$(nproc) -v` |
 | `iwb digest` | Compute MD5/SHA256 checksums table | `uv run iwb digest --target official-mt7981-ax3000m` |
 | `iwb run` | **Run full end-to-end build pipeline** | `uv run iwb run --target official-mt7981-ax3000m` |
 | `iwb check-update` | Check if repo has upstream/local changes | `uv run iwb check-update --target official-mt7981-ax3000m` |
 | `iwb tools add-git-safe` | Add directory to Git `safe.directory` | `uv run iwb tools add-git-safe /path/to/workspace -r` |
+| `iwb tools ccache-stats` | Show ccache hit rate and stats | `uv run iwb tools ccache-stats --target official-mt7981-ax3000m` |
 | `iwb tools clean` | Clean build tree (`make clean/dirclean`) | `uv run iwb tools clean --target official-mt7981-ax3000m` |
 | `iwb usage` | Display workspace disk space usage | `uv run iwb usage` |
 
@@ -123,13 +125,11 @@ extends = "immortalwrt-base"
 [source]
 branch = "openwrt-23.05"
 
+[patch]
+post_feeds_patches = ["custom_tweaks.py"]
+
 [build]
 defconfig = "ax3000m.config"
-
-[patch]
-ip_address = "192.168.10.1"
-hostname = "ImmortalWrt"
-default_theme = "luci-theme-argon"
 
 [output]
 dist_dir = "official-mt7981-ax3000m"

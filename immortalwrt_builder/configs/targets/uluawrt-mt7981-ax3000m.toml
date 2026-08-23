@@ -2,8 +2,8 @@ name = "uluawrt-mt7981-ax3000m"
 extends = "mt798x-base"
 
 [patch]
-pre_feeds_scripts = ["diy1.sh"]
-post_feeds_scripts = ["diy2.sh", "diy3.sh"]
+pre_feeds_patches = ["patch1.py"]
+post_feeds_patches = ["patch2.py", "patch3.py"]
 
 [build]
 defconfig = "ax3000m.config"

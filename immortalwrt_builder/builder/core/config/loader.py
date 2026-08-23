@@ -22,29 +22,25 @@ _TARGET_ROOT_KEYS = {"name", "base", "extends", "source", "feeds", "patch", "diy
 _SOURCE_KEYS = {"url", "branch", "tag", "commit", "depth", "submodules"}
 _FEEDS_KEYS = {"update", "install", "custom_feeds", "conf_file"}
 _PATCH_KEYS = {
+    "pre_feeds_patches",
+    "post_feeds_patches",
+    "post_config_patches",
     "pre_feeds_scripts",
     "post_feeds_scripts",
     "post_config_scripts",
-    "custom_files",
-    "ip_address",
-    "hostname",
-    "wifi_ssid_2g",
-    "wifi_ssid_5g",
-    "default_theme",
-    "distrib_description",
-    "distrib_revision",
 }
 _BUILD_KEYS = {
     "defconfig_path",
     "defconfig",
     "target_profile",
-    "extra_configs",
     "jobs",
     "verbose",
     "download",
     "use_ccache",
     "ccache_dir",
     "ccache_max_size",
+    "ccache_export_stats",
+    "ccache_stats_log",
     "ignore_errors",
 }
 _OUTPUT_KEYS = {"dist_dir", "target_dir", "packages_dir", "calculate_digest", "firmware_patterns"}
@@ -54,7 +50,7 @@ def parse_target_definition_file(
     config_path: str | Path,
     *,
     defconfigs_root: Path | None = None,
-    diy_root: Path | None = None,
+    patchs_root: Path | None = None,
 ) -> TargetConfig:
     path = Path(config_path).resolve()
     payload = _load_target_payload(path)
@@ -67,7 +63,7 @@ def parse_target_definition_file(
     base = _optional_bool(payload.get("base"), default=False, field="base", config_path=path)
     source = _parse_source_config(payload.get("source"), path)
     feeds = _parse_feeds_config(payload.get("feeds"), path)
-    patch = _parse_patch_config(payload.get("patch") or payload.get("diy"), path, diy_root=diy_root)
+    patch = _parse_patch_config(payload.get("patch") or payload.get("diy"), path, patchs_root=patchs_root)
     build = _parse_build_config(payload.get("build"), path, defconfigs_root=defconfigs_root)
     output = _parse_output_config(payload.get("output"), path)
 
@@ -119,34 +115,21 @@ def _parse_feeds_config(value: object, config_path: Path) -> FeedsConfig:
     )
 
 
-def _parse_patch_config(value: object, config_path: Path, *, diy_root: Path | None) -> PatchConfig:
+def _parse_patch_config(value: object, config_path: Path, *, patchs_root: Path | None) -> PatchConfig:
     if value is None:
         return PatchConfig()
     if not isinstance(value, dict):
         raise ValueError(f"Invalid 'patch' table in {config_path}: expected mapping")
     _reject_unknown_keys(value, _PATCH_KEYS, "patch", config_path)
 
-    custom_files_str = _optional_string(value.get("custom_files"), field="patch.custom_files", config_path=config_path)
-    custom_files_path = _resolve_relative_path(custom_files_str, diy_root, config_path.parent)
+    pre_raw = value.get("pre_feeds_patches") or value.get("pre_feeds_scripts")
+    post_raw = value.get("post_feeds_patches") or value.get("post_feeds_scripts")
+    post_cfg_raw = value.get("post_config_patches") or value.get("post_config_scripts")
 
     return PatchConfig(
-        pre_feeds_scripts=_resolve_path_list(value.get("pre_feeds_scripts"), diy_root, config_path),
-        post_feeds_scripts=_resolve_path_list(value.get("post_feeds_scripts"), diy_root, config_path),
-        post_config_scripts=_resolve_path_list(value.get("post_config_scripts"), diy_root, config_path),
-        custom_files=custom_files_path,
-        ip_address=_optional_string(value.get("ip_address"), field="patch.ip_address", config_path=config_path),
-        hostname=_optional_string(value.get("hostname"), field="patch.hostname", config_path=config_path),
-        wifi_ssid_2g=_optional_string(value.get("wifi_ssid_2g"), field="patch.wifi_ssid_2g", config_path=config_path),
-        wifi_ssid_5g=_optional_string(value.get("wifi_ssid_5g"), field="patch.wifi_ssid_5g", config_path=config_path),
-        default_theme=_optional_string(
-            value.get("default_theme"), field="patch.default_theme", config_path=config_path
-        ),
-        distrib_description=_optional_string(
-            value.get("distrib_description"), field="patch.distrib_description", config_path=config_path
-        ),
-        distrib_revision=_optional_string(
-            value.get("distrib_revision"), field="patch.distrib_revision", config_path=config_path
-        ),
+        pre_feeds_patches=_resolve_path_list(pre_raw, patchs_root, config_path),
+        post_feeds_patches=_resolve_path_list(post_raw, patchs_root, config_path),
+        post_config_patches=_resolve_path_list(post_cfg_raw, patchs_root, config_path),
     )
 
 
@@ -169,7 +152,6 @@ def _parse_build_config(value: object, config_path: Path, *, defconfigs_root: Pa
         target_profile=_optional_string(
             value.get("target_profile"), field="build.target_profile", config_path=config_path
         ),
-        extra_configs=_string_list(value.get("extra_configs"), [], config_path, "build.extra_configs"),
         jobs=_optional_int(value.get("jobs"), default=os.cpu_count() or 1, field="build.jobs", config_path=config_path),
         verbose=_optional_bool(value.get("verbose"), default=False, field="build.verbose", config_path=config_path),
         download=_optional_bool(value.get("download"), default=True, field="build.download", config_path=config_path),
@@ -181,6 +163,12 @@ def _parse_build_config(value: object, config_path: Path, *, defconfigs_root: Pa
             value.get("ccache_max_size"), field="build.ccache_max_size", config_path=config_path
         )
         or "10G",
+        ccache_export_stats=_optional_bool(
+            value.get("ccache_export_stats"), default=True, field="build.ccache_export_stats", config_path=config_path
+        ),
+        ccache_stats_log=_optional_bool(
+            value.get("ccache_stats_log"), default=False, field="build.ccache_stats_log", config_path=config_path
+        ),
         ignore_errors=_optional_bool(
             value.get("ignore_errors"), default=False, field="build.ignore_errors", config_path=config_path
         ),

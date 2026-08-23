@@ -24,10 +24,7 @@ class BuildTests(unittest.TestCase):
             target = TargetConfig(
                 name="test",
                 source=GitSourceConfig(url="https://example.com"),
-                build=BuildConfig(
-                    defconfig_path=defconfig_file,
-                    extra_configs=["CONFIG_PACKAGE_luci=y"],
-                ),
+                build=BuildConfig(defconfig_path=defconfig_file),
             )
 
             with mock.patch("immortalwrt_builder.builder.core.build.engine.run_command") as mock_run:
@@ -37,7 +34,6 @@ class BuildTests(unittest.TestCase):
             self.assertTrue(dot_config.exists())
             content = dot_config.read_text(encoding="utf-8")
             self.assertIn("CONFIG_TARGET_mediatek=y", content)
-            self.assertIn("CONFIG_PACKAGE_luci=y", content)
             mock_run.assert_called_once_with(["make", "defconfig"], cwd=source_dir)
 
     def test_download_packages_runs_make_download(self) -> None:

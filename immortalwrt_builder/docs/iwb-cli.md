@@ -4,10 +4,9 @@ The `iwb` CLI is the main orchestration command for `immortalwrt-action-builder`
 
 ## Global Options & Targets
 
-Every command accepts `--target <name>`. If omitted, `iwb` checks:
-1. Environment variable `IWB_TARGET`
-2. Environment variable `IMMORTALWRT_TARGET`
-3. If only one selectable target exists in `immortalwrt_builder/configs/targets/*.toml`, it will be automatically selected.
+Every command accepts:
+- `--target <name>`: Target config name. If omitted, checks `IWB_TARGET`, `IMMORTALWRT_TARGET`, or auto-selects if only one target exists.
+- `--work-root <path>`: Custom workspace root directory for source code, build cache, and output artifacts (overrides `global.toml` and `IWB_WORK_ROOT`).
 
 ## Subcommands
 
@@ -27,15 +26,15 @@ uv run iwb sync-source --target official-mt7981-ax3000m
 ```
 
 ### 3. `setup-feeds`
-Configure `feeds.conf.default`, execute pre-feeds DIY scripts, run `./scripts/feeds update -a` and `./scripts/feeds install -a`, and apply post-feeds DIY scripts and builtin patches.
+Configure `feeds.conf.default`, execute pre-feeds Python patches, run `./scripts/feeds update -a` and `./scripts/feeds install -a`, and apply post-feeds Python patches.
 
 ```bash
 uv run iwb setup-feeds --target official-mt7981-ax3000m
-uv run iwb setup-feeds --target official-mt7981-ax3000m --skip-diy
+uv run iwb setup-feeds --target official-mt7981-ax3000m --skip-patches
 ```
 
 ### 4. `configure`
-Apply the target's defconfig file and extra config options, run `make defconfig`, and execute post-config DIY scripts.
+Apply the target's defconfig file, run `make defconfig`, and execute post-config Python patches.
 
 ```bash
 uv run iwb configure --target official-mt7981-ax3000m
@@ -65,8 +64,8 @@ uv run iwb digest --target official-mt7981-ax3000m
 ### 8. `run`
 Execute the entire pipeline end-to-end:
 1. `sync-source`
-2. `setup-feeds` (pre-feeds DIY + feeds install + post-feeds DIY)
-3. `configure` (defconfig + make defconfig + post-config DIY)
+2. `setup-feeds` (pre-feeds patches + feeds install + post-feeds patches)
+3. `configure` (defconfig + make defconfig + post-config patches)
 4. `download` (make download)
 5. `build` (make -jN)
 6. `digest` (checksums table & summary)
@@ -89,6 +88,12 @@ Maintenance helpers:
 ```bash
 # Add directory to git safe.directory
 uv run iwb tools add-git-safe /path/to/workspace -r
+
+# View ccache statistics
+uv run iwb tools ccache-stats --target official-mt7981-ax3000m
+
+# Clear ccache
+uv run iwb tools ccache-clean --target official-mt7981-ax3000m
 
 # Clean OpenWrt build tree
 uv run iwb tools clean --target official-mt7981-ax3000m

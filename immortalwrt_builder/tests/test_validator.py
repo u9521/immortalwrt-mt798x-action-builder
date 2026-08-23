@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -53,14 +54,27 @@ class ValidatorTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             validate_target(target, Path("test.toml"))
 
-    def test_rejects_missing_diy_script(self) -> None:
+    def test_rejects_missing_patch_script(self) -> None:
         target = TargetConfig(
             name="test",
             source=GitSourceConfig(url="https://example.com", branch="main"),
-            patch=PatchConfig(pre_feeds_scripts=[Path("/non/existent/script.sh")]),
+            patch=PatchConfig(pre_feeds_patches=[Path("/non/existent/script.py")]),
         )
         with self.assertRaises(FileNotFoundError):
             validate_target(target, Path("test.toml"))
+
+    def test_rejects_non_python_patch_script(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            shell_script = Path(temp_dir) / "script.sh"
+            shell_script.write_text("#!/bin/sh\n", encoding="utf-8")
+
+            target = TargetConfig(
+                name="test",
+                source=GitSourceConfig(url="https://example.com", branch="main"),
+                patch=PatchConfig(pre_feeds_patches=[shell_script]),
+            )
+            with self.assertRaisesRegex(ValueError, "Only Python \\(\\.py\\) patches are supported"):
+                validate_target(target, Path("test.toml"))
 
 
 if __name__ == "__main__":

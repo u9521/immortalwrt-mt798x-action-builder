@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import os
+import tomllib
 from pathlib import Path
 
 PROJECT_PACKAGE_DIR_NAME = "immortalwrt_builder"
@@ -10,12 +12,11 @@ CONFIGS_DIR_NAME = "configs"
 DOCS_DIR_NAME = "docs"
 TARGETS_DIR_NAME = "targets"
 DEFCONFIGS_DIR_NAME = "defconfigs"
-DIY_DIR_NAME = "diy"
+PATCHS_DIR_NAME = "patchs"
 SCRIPTS_DIR_NAME = "scripts"
 
 SOURCE_CODE_DIR_NAME = "source-code"
 CACHE_DIR_NAME = "cache"
-CCACHE_TOOLS_DIR_NAME = ".ccache-tools"
 TEMP_DIR_NAME = ".temp"
 OUTPUT_DIR_NAME = "out"
 INFOS_DIR_NAME = "infos"
@@ -49,12 +50,40 @@ def defconfigs_root(project_root: Path) -> Path:
     return project_configs_root(project_root) / DEFCONFIGS_DIR_NAME
 
 
-def diy_root(project_root: Path) -> Path:
-    return project_configs_root(project_root) / DIY_DIR_NAME
+def patchs_root(project_root: Path) -> Path:
+    return project_configs_root(project_root) / PATCHS_DIR_NAME
 
 
 def scripts_root(project_root: Path) -> Path:
     return project_package_root(project_root) / SCRIPTS_DIR_NAME
+
+
+def resolve_work_root(
+    project_root: Path | None = None,
+    cli_work_root: str | Path | None = None,
+) -> Path:
+    if cli_work_root:
+        return Path(cli_work_root).expanduser().resolve()
+
+    env_work_root = os.environ.get("IWB_WORK_ROOT") or os.environ.get("IMMORTALWRT_WORK_ROOT")
+    if env_work_root and env_work_root.strip():
+        return Path(env_work_root.strip()).expanduser().resolve()
+
+    root = (project_root or Path.cwd()).resolve()
+    global_cfg_file = global_config_file(root)
+    if global_cfg_file.exists():
+        try:
+            payload = tomllib.loads(global_cfg_file.read_text(encoding="utf-8")) or {}
+            workspace = payload.get("workspace", {})
+            general = payload.get("general", {})
+            raw = workspace.get("work_root") or general.get("work_root")
+            if raw and isinstance(raw, str) and raw.strip():
+                p = Path(raw.strip()).expanduser()
+                return p.resolve() if p.is_absolute() else (root / p).resolve()
+        except Exception:
+            pass
+
+    return root
 
 
 def source_code_root(work_root: Path) -> Path:
@@ -75,10 +104,6 @@ def target_cache_root(work_root: Path, target_name: str) -> Path:
 
 def target_ccache_dir(work_root: Path, target_name: str) -> Path:
     return target_cache_root(work_root, target_name) / "ccache"
-
-
-def target_ccache_tools_dir(work_root: Path, target_name: str) -> Path:
-    return target_cache_root(work_root, target_name) / CCACHE_TOOLS_DIR_NAME
 
 
 def target_dl_dir(work_root: Path, target_name: str) -> Path:

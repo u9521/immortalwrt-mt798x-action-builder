@@ -34,17 +34,15 @@ def _validate_build(target: TargetConfig, config_path: Path) -> None:
 
 
 def _validate_patch(target: TargetConfig, config_path: Path) -> None:
-    for script_path in target.patch.pre_feeds_scripts:
-        if not script_path.exists():
-            raise FileNotFoundError(f"Pre-feeds DIY script not found: {script_path} (in {config_path})")
-
-    for script_path in target.patch.post_feeds_scripts:
-        if not script_path.exists():
-            raise FileNotFoundError(f"Post-feeds DIY script not found: {script_path} (in {config_path})")
-
-    for script_path in target.patch.post_config_scripts:
-        if not script_path.exists():
-            raise FileNotFoundError(f"Post-config DIY script not found: {script_path} (in {config_path})")
-
-    if target.patch.custom_files is not None and not target.patch.custom_files.exists():
-        raise FileNotFoundError(f"Custom files directory not found: {target.patch.custom_files} (in {config_path})")
+    all_patches = [
+        *target.patch.pre_feeds_patches,
+        *target.patch.post_feeds_patches,
+        *target.patch.post_config_patches,
+    ]
+    for patch_path in all_patches:
+        if not patch_path.exists():
+            raise FileNotFoundError(f"Patch file not found: {patch_path} (in {config_path})")
+        if patch_path.suffix != ".py":
+            raise ValueError(
+                f"Invalid patch file: {patch_path.name} (in {config_path}). Only Python (.py) patches are supported."
+            )

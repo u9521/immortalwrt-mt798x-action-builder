@@ -11,8 +11,11 @@ from ...utils import ensure_directory
 from ..config.schema import TargetConfig
 from .ccache import (
     clear_ccache,
-    get_target_ccache_dir,
+    export_ccache_stats,
     is_ccache_available,
+    is_openwrt_ccache_enabled,
+    print_ccache_banner,
+    resolve_effective_ccache_dir,
     setup_ccache_environment,
     show_ccache_stats,
 )
@@ -61,10 +64,13 @@ __all__ = [
     "collect_outputs",
     "download_packages",
     "execute_build_pipeline",
+    "export_ccache_stats",
     "generate_digest_table",
-    "get_target_ccache_dir",
     "is_ccache_available",
+    "is_openwrt_ccache_enabled",
     "prepare_config",
+    "print_ccache_banner",
+    "resolve_effective_ccache_dir",
     "setup_ccache_environment",
     "show_ccache_stats",
     "write_digest_summary",

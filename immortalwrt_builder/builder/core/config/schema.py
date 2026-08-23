@@ -28,30 +28,23 @@ class FeedsConfig:
 
 @dataclass(slots=True)
 class PatchConfig:
-    pre_feeds_scripts: list[Path] = field(default_factory=list)
-    post_feeds_scripts: list[Path] = field(default_factory=list)
-    post_config_scripts: list[Path] = field(default_factory=list)
-    custom_files: Path | None = None
-    ip_address: str | None = None
-    hostname: str | None = None
-    wifi_ssid_2g: str | None = None
-    wifi_ssid_5g: str | None = None
-    default_theme: str | None = None
-    distrib_description: str | None = None
-    distrib_revision: str | None = None
+    pre_feeds_patches: list[Path] = field(default_factory=list)
+    post_feeds_patches: list[Path] = field(default_factory=list)
+    post_config_patches: list[Path] = field(default_factory=list)
 
 
 @dataclass(slots=True)
 class BuildConfig:
     defconfig_path: Path | None = None
     target_profile: str | None = None
-    extra_configs: list[str] = field(default_factory=list)
     jobs: int = os.cpu_count() or 1
     verbose: bool = False
     download: bool = True
     use_ccache: bool = True
     ccache_dir: Path | None = None
     ccache_max_size: str = "10G"
+    ccache_export_stats: bool = True
+    ccache_stats_log: bool = False
     ignore_errors: bool = False
 
 

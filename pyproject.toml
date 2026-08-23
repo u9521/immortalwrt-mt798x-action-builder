@@ -3,7 +3,7 @@ name = "immortalwrt-builder"
 version = "0.1.0"
 description = "ImmortalWrt build orchestration CLI and GitHub Actions builder"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license-files = ["LICENSE"]
 authors = [{ name = "u9521" }]
 dependencies = []
@@ -20,7 +20,7 @@ module-root = "."
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -40,5 +40,5 @@ ignore = [
 [tool.pyright]
 include = ["immortalwrt_builder"]
 exclude = [".venv", "source-code", "cache", "out"]
-pythonVersion = "3.11"
+pythonVersion = "3.14"
 typeCheckingMode = "basic"

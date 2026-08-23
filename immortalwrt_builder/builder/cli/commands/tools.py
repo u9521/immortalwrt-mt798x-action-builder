@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from ... import layout
-from ...core.build import clean_build, clear_ccache, get_target_ccache_dir, show_ccache_stats
+from ...core.build import clean_build, clear_ccache, resolve_effective_ccache_dir, show_ccache_stats
 from ...core.config import TargetConfigProvider
 from ...utils import run_command
-from ..common import add_target_argument
+from ..common import add_target_argument, add_work_root_argument, get_work_root
 from ..registry import register_command
 
 
@@ -31,6 +31,7 @@ def build_parser(subparsers: Any) -> None:
     # Subcommand: clean
     clean = tool_subparsers.add_parser("clean", help="Clean build directories and artifacts")
     add_target_argument(clean)
+    add_work_root_argument(clean)
     clean.add_argument(
         "--dirclean", action="store_true", help="Run 'make dirclean' (removes staging_dir and toolchain builds)"
     )
@@ -40,11 +41,13 @@ def build_parser(subparsers: Any) -> None:
     # Subcommand: ccache-stats
     ccache_stats = tool_subparsers.add_parser("ccache-stats", help="Display ccache statistics for target")
     add_target_argument(ccache_stats)
+    add_work_root_argument(ccache_stats)
     ccache_stats.set_defaults(handler=handle_ccache_stats)
 
     # Subcommand: ccache-clean
     ccache_clean = tool_subparsers.add_parser("ccache-clean", help="Clear ccache cache directory for target")
     add_target_argument(ccache_clean)
+    add_work_root_argument(ccache_clean)
     ccache_clean.set_defaults(handler=handle_ccache_clean)
 
 
@@ -84,14 +87,15 @@ def handle_add_git_safe(args: argparse.Namespace) -> int:
 
 
 def handle_clean(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
     source_dir = layout.target_source_root(work_root, target.name)
     cache_root = layout.target_cache_root(work_root, target.name)
     output_root = layout.target_output_root(work_root, target.name)
 
     if args.all:
-        print(f"Purging all directories for target {target.name}...", flush=True)
+        print(f"Purging all directories for target {target.name} in {work_root}...", flush=True)
         if source_dir.exists():
             shutil.rmtree(source_dir)
             print(f"  - Removed {source_dir}", flush=True)
@@ -110,17 +114,21 @@ def handle_clean(args: argparse.Namespace) -> int:
 
 
 def handle_ccache_stats(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
-    ccache_dir = get_target_ccache_dir(work_root, target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
+    source_dir = layout.target_source_root(work_root, target.name)
+    ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
     show_ccache_stats(ccache_dir)
     return 0
 
 
 def handle_ccache_clean(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
-    ccache_dir = get_target_ccache_dir(work_root, target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
+    source_dir = layout.target_source_root(work_root, target.name)
+    ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
     clear_ccache(ccache_dir)
     return 0
 

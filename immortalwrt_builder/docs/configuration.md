@@ -1,8 +1,10 @@
-# Target Configuration Guide
+# Configuration Guide
+
+## 1. Target Configurations
 
 Target configurations are declared in TOML files under `immortalwrt_builder/configs/targets/<name>.toml`.
 
-## Structure
+### Structure
 
 ```toml
 name = "official-mt7981-ax3000m"   # Unique target name (required)
@@ -26,28 +28,18 @@ custom_feeds = [                                        # Extra feed lines appen
 conf_file = "path/to/custom/feeds.conf.default"         # Optional custom feeds.conf.default
 
 [patch]
-pre_feeds_scripts = ["diy1.sh"]                         # Scripts executed before feeds update
-post_feeds_scripts = ["diy2.sh", "diy3.sh"]             # Scripts executed after feeds install
-post_config_scripts = ["post_config.sh"]                # Scripts executed after make defconfig
-custom_files = "path/to/files"                          # Overlay files directory
-ip_address = "192.168.10.1"                             # Builtin patch: default LAN IP
-hostname = "ImmortalWrt"                                # Builtin patch: default hostname
-wifi_ssid_2g = "MyRouter-2.4G"                          # Builtin patch: 2.4G Wi-Fi SSID
-wifi_ssid_5g = "MyRouter-5G"                            # Builtin patch: 5G Wi-Fi SSID
-default_theme = "luci-theme-argon"                      # Builtin patch: default LuCI theme
-distrib_description = "ImmortalWrt-{date}"              # Builtin patch: release description
-distrib_revision = "By Author"                          # Builtin patch: release revision
+pre_feeds_patches = ["patch1.py"]                       # Python patches executed before feeds update
+post_feeds_patches = ["patch2.py", "patch3.py"]         # Python patches executed after feeds install
+post_config_patches = ["post_config.py"]                # Python patches executed after make defconfig
 
 [build]
-defconfig = "ax3000m.config"                            # Path to defconfig file in defconfigs/
+defconfig = "ax3000m.config"                            # Path to defconfig file (e.g. from ./scripts/diffconfig.sh)
 target_profile = "mediatek/mt7981/cmcc_rax3000m"        # Optional target profile string
-extra_configs = [                                       # Extra .config lines appended before make defconfig
-    "CONFIG_PACKAGE_luci-app-argon-config=y"
-]
 jobs = 16                                               # Parallel jobs (default: CPU threads count)
 verbose = false                                         # Verbose compilation (V=s)
 download = true                                         # Run make download (default: true)
 use_ccache = true                                       # Enable compiler cache (default: true)
+ccache_max_size = "10G"                                 # ccache storage cap (default: 10G)
 ignore_errors = false                                   # Ignore compilation errors (default: false)
 
 [output]
@@ -63,4 +55,49 @@ firmware_patterns = [                                   # Glob patterns for firm
     "*.ubi",
     "*.img.gz"
 ]
+```
+
+---
+
+## 2. Global Configuration (`global.toml`)
+
+Global settings are stored in `immortalwrt_builder/configs/global.toml`.
+
+```toml
+[general]
+default_depth = 1
+default_download = true
+default_use_ccache = true
+
+[workspace]
+# Custom workspace root directory for source-code, cache, and outputs.
+# Highly recommended for WSL environments to avoid slow Windows 9P filesystem (/mnt/c/...)
+# by pointing work_root to native Linux ext4 path (e.g. /home/username/immortalwrt-build).
+# work_root = "/home/username/immortalwrt-build"
+```
+
+### Workspace Resolution Order
+1. CLI option `--work-root <path>`
+2. Environment variable `IWB_WORK_ROOT` / `IMMORTALWRT_WORK_ROOT`
+3. `global.toml` (`[workspace].work_root` or `[general].work_root`)
+4. Current project directory (`Path.cwd()`)
+
+---
+
+## 3. Python Patch Script Specification
+
+Every patch script is a Python 3.14+ script located in `immortalwrt_builder/configs/patchs/`. It receives a `PatchContext` object providing rich helper methods and access to the target configuration:
+
+```python
+# SPDX-License-Identifier: GPL-3.0-only
+from immortalwrt_builder.builder.core.patch.interface import PatchContext
+
+
+def patch(context: PatchContext) -> None:
+    # 1. Access target config
+    print(f"Applying patch for target: {context.target.name}")
+
+    # 2. Modify files in source tree
+    context.replace_text("package/base-files/files/bin/config_generate", "192.168.1.1", "192.168.10.1")
+    context.append_text("package/base-files/files/etc/sysctl.conf", "vm.swappiness=10\n")
 ```

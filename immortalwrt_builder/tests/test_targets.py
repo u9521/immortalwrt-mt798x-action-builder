@@ -45,12 +45,14 @@ class CheckedInTargetsTests(unittest.TestCase):
         target = self.provider.load("uluawrt-mt7981-ax3000m")
         self.assertEqual(target.name, "uluawrt-mt7981-ax3000m")
         self.assertEqual(target.source.url, "https://github.com/hanwckf/immortalwrt-mt798x.git")
-        self.assertEqual(len(target.patch.pre_feeds_scripts), 1)
-        self.assertEqual(len(target.patch.post_feeds_scripts), 2)
-        for p in target.patch.pre_feeds_scripts:
+        self.assertEqual(len(target.patch.pre_feeds_patches), 1)
+        self.assertEqual(len(target.patch.post_feeds_patches), 2)
+        for p in target.patch.pre_feeds_patches:
             self.assertTrue(p.exists())
-        for p in target.patch.post_feeds_scripts:
+            self.assertEqual(p.suffix, ".py")
+        for p in target.patch.post_feeds_patches:
             self.assertTrue(p.exists())
+            self.assertEqual(p.suffix, ".py")
 
 
 if __name__ == "__main__":

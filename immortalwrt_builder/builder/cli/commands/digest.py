@@ -10,7 +10,7 @@ from typing import Any
 from ... import layout
 from ...core.build import collect_outputs, write_digest_summary
 from ...core.config import TargetConfigProvider
-from ..common import add_target_argument
+from ..common import add_target_argument, add_work_root_argument, get_work_root
 from ..registry import register_command
 
 
@@ -18,13 +18,15 @@ from ..registry import register_command
 def build_parser(subparsers: Any) -> None:
     parser = subparsers.add_parser("digest", help="Compute MD5 and SHA256 checksums of built firmware artifacts")
     add_target_argument(parser)
+    add_work_root_argument(parser)
     parser.add_argument("--summary-file", help="Path to markdown step summary file (or GITHUB_STEP_SUMMARY)")
     parser.set_defaults(handler=handle_digest)
 
 
 def handle_digest(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
     source_dir = layout.target_source_root(work_root, target.name)
     output_root = layout.target_output_root(work_root, target.name)
 

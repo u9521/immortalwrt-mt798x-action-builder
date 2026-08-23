@@ -11,7 +11,7 @@ from typing import Any
 from ... import layout
 from ...core.config import TargetConfigProvider
 from ...core.sync import get_local_head_commit, get_remote_head_commit
-from ..common import add_target_argument
+from ..common import add_target_argument, add_work_root_argument, get_work_root
 from ..registry import register_command
 
 
@@ -22,17 +22,19 @@ def build_parser(subparsers: Any) -> None:
         help="Check if upstream source or local repository has changes compared to last build",
     )
     add_target_argument(parser)
+    add_work_root_argument(parser)
     parser.set_defaults(handler=handle_check_update)
 
 
 def handle_check_update(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
 
     # 1. Get current local commit
     current_local_commit = ""
     try:
-        current_local_commit = get_local_head_commit(work_root)
+        current_local_commit = get_local_head_commit(project_root)
     except Exception:
         pass
 
@@ -64,6 +66,7 @@ def handle_check_update(args: argparse.Namespace) -> int:
         cached_upstream = (infos_dir / "lastUpstreamCommit").read_text(encoding="utf-8").strip()
 
     print(f"Target: {target.name}")
+    print(f"  Workspace:               {work_root}")
     print(f"  Current local commit:    {current_local_commit or '(unknown)'}")
     print(f"  Cached local commit:     {cached_local or '(none)'}")
     print(f"  Current upstream commit: {current_remote_commit or '(unknown)'}")

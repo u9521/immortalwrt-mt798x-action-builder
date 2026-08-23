@@ -2,3 +2,8 @@
 default_depth = 1
 default_download = true
 default_use_ccache = true
+
+[workspace]
+# Custom workspace root directory for builds, cache, and outputs.
+# If unset, defaults to current working directory (project root).
+# work_root = ""

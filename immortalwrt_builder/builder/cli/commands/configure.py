@@ -11,25 +11,35 @@ from ... import layout
 from ...core.build import prepare_config
 from ...core.config import TargetConfigProvider
 from ...core.patch import apply_post_config_patches
-from ..common import add_target_argument
+from ..common import add_target_argument, add_work_root_argument, get_work_root
 from ..registry import register_command
 
 
-@register_command("configure", "Configure OpenWrt target using defconfig and extra settings")
+@register_command("configure", "Configure OpenWrt target using defconfig and post-config patches")
 def build_parser(subparsers: Any) -> None:
-    parser = subparsers.add_parser("configure", help="Configure OpenWrt target using defconfig and extra settings")
+    parser = subparsers.add_parser(
+        "configure",
+        help="Configure OpenWrt target using defconfig and post-config patches",
+    )
     add_target_argument(parser)
+    add_work_root_argument(parser)
+    parser.add_argument("--skip-patches", "--skip-diy", action="store_true", help="Skip executing Python patch scripts")
     parser.set_defaults(handler=handle_configure)
 
 
 def handle_configure(args: argparse.Namespace) -> int:
-    work_root = Path.cwd()
-    target = TargetConfigProvider(work_root).load(args.target)
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
     source_dir = layout.target_source_root(work_root, target.name)
 
     if not source_dir.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}. Run 'iwb sync-source' first.")
 
     prepare_config(target, source_dir)
-    apply_post_config_patches(target, source_dir)
+
+    skip_patch = getattr(args, "skip_patches", False) or getattr(args, "skip_diy", False)
+    if not skip_patch:
+        apply_post_config_patches(target, source_dir, work_root)
+
     return 0

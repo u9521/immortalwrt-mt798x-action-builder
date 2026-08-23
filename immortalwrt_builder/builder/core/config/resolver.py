@@ -20,7 +20,7 @@ def load_project_target(project_root: Path, target_name: str) -> TargetConfig:
     return parse_target_definition_file(
         config_path,
         defconfigs_root=layout.defconfigs_root(project_root),
-        diy_root=layout.diy_root(project_root),
+        patchs_root=layout.patchs_root(project_root),
     )
 
 

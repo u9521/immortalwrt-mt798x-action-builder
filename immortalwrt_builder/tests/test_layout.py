@@ -22,7 +22,7 @@ class LayoutTests(unittest.TestCase):
             layout.target_config_file(root, "sample"), root / "immortalwrt_builder/configs/targets/sample.toml"
         )
         self.assertEqual(layout.defconfigs_root(root), root / "immortalwrt_builder/configs/defconfigs")
-        self.assertEqual(layout.diy_root(root), root / "immortalwrt_builder/configs/diy")
+        self.assertEqual(layout.patchs_root(root), root / "immortalwrt_builder/configs/patchs")
 
     def test_workspace_paths(self) -> None:
         root = Path("/test/work")

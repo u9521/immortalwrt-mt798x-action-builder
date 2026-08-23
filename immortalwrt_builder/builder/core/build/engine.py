@@ -11,7 +11,10 @@ from ... import layout
 from ...utils import run_command
 from ..config.schema import TargetConfig
 from .ccache import (
-    get_target_ccache_dir,
+    export_ccache_stats,
+    is_openwrt_ccache_enabled,
+    print_ccache_banner,
+    resolve_effective_ccache_dir,
     setup_ccache_environment,
     show_ccache_stats,
 )
@@ -24,15 +27,8 @@ def prepare_config(target: TargetConfig, source_dir: Path) -> Path:
     if target.build.defconfig_path is not None and target.build.defconfig_path.exists():
         print(f"Applying defconfig from {target.build.defconfig_path}...", flush=True)
         shutil.copyfile(target.build.defconfig_path, dot_config)
-
-    configs_to_append: list[str] = list(target.build.extra_configs)
-
-    if configs_to_append:
-        print("Configuring extra settings in .config...", flush=True)
-        with dot_config.open("a", encoding="utf-8") as f:
-            for extra in configs_to_append:
-                f.write(f"{extra.strip()}\n")
-                print(f"  + {extra.strip()}", flush=True)
+    elif not dot_config.exists():
+        dot_config.touch()
 
     print("Generating configuration (make defconfig)...", flush=True)
     run_command(["make", "defconfig"], cwd=source_dir)
@@ -85,18 +81,24 @@ def build_firmware(
     resolved_jobs = jobs or target.build.jobs or (os.cpu_count() or 1)
     is_verbose = verbose if verbose is not None else target.build.verbose
 
+    dot_config = source_dir / ".config"
+    ccache_in_config, _ = is_openwrt_ccache_enabled(dot_config)
+    ccache_active = ccache_in_config or target.build.use_ccache
+
     env = os.environ.copy()
-    if target.build.use_ccache:
-        env = setup_ccache_environment(target, work_root, base_env=env)
-        ccache_dir = get_target_ccache_dir(work_root, target)
-        print(f"Using ccache at: {ccache_dir} (max size: {target.build.ccache_max_size})", flush=True)
-        show_ccache_stats(ccache_dir)
+    ccache_dir: Path | None = None
+    infos_dir = layout.target_infos_root(work_root, target.name)
+
+    if ccache_active:
+        ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
+        print_ccache_banner(ccache_dir, target.build.ccache_max_size)
+        env = setup_ccache_environment(target, ccache_dir, infos_dir, base_env=env)
 
     cmd = ["make", f"-j{resolved_jobs}"]
     if is_verbose:
         cmd.append("V=s")
 
-    print(f"\n=== Starting firmware compilation (make -j{resolved_jobs}) ===", flush=True)
+    print(f"=== Starting firmware compilation (make -j{resolved_jobs}) ===", flush=True)
     try:
         run_command(cmd, cwd=source_dir, env=env, check=True)
     except Exception as exc:
@@ -109,10 +111,11 @@ def build_firmware(
         if not target.build.ignore_errors:
             raise
     finally:
-        if target.build.use_ccache:
-            ccache_dir = get_target_ccache_dir(work_root, target)
-            print("\n=== Final ccache Statistics ===", flush=True)
-            show_ccache_stats(ccache_dir)
+        if ccache_active and ccache_dir is not None:
+            if target.build.ccache_export_stats:
+                export_ccache_stats(ccache_dir, infos_dir)
+            else:
+                show_ccache_stats(ccache_dir)
 
 
 def clean_build(source_dir: Path, *, dirclean: bool = False) -> None:
