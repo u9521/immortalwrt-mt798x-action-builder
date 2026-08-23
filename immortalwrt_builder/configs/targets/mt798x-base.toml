@@ -1,0 +1,22 @@
+name = "mt798x-base"
+base = true
+
+[source]
+url = "https://github.com/hanwckf/immortalwrt-mt798x.git"
+branch = "openwrt-21.02"
+depth = 1
+submodules = false
+
+[feeds]
+update = true
+install = true
+
+[build]
+download = true
+use_ccache = true
+ignore_errors = false
+
+[output]
+target_dir = "bin/targets/mediatek/mt7981"
+packages_dir = "bin/packages"
+calculate_digest = true

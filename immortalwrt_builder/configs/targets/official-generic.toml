@@ -1,0 +1,8 @@
+name = "official-generic"
+extends = "immortalwrt-base"
+
+[source]
+branch = "master"
+
+[output]
+dist_dir = "official-generic"

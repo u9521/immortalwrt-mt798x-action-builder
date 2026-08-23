@@ -1,0 +1,21 @@
+name = "immortalwrt-base"
+base = true
+
+[source]
+url = "https://github.com/immortalwrt/immortalwrt.git"
+branch = "openwrt-23.05"
+depth = 1
+submodules = false
+
+[feeds]
+update = true
+install = true
+custom_feeds = []
+
+[build]
+download = true
+use_ccache = true
+ignore_errors = false
+
+[output]
+calculate_digest = true

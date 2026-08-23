@@ -1,0 +1,13 @@
+name = "official-x86-64"
+extends = "immortalwrt-base"
+
+[source]
+branch = "openwrt-23.05"
+
+[build]
+defconfig = "x86_64.config"
+
+[output]
+dist_dir = "official-x86-64"
+target_dir = "bin/targets/x86/64"
+packages_dir = "bin/packages"

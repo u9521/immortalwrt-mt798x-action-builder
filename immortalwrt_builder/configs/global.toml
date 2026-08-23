@@ -1,0 +1,4 @@
+[general]
+default_depth = 1
+default_download = true
+default_use_ccache = true

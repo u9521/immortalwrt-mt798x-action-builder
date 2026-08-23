@@ -1,0 +1,136 @@
+name: Build ImmortalWrt Firmware
+
+permissions:
+  actions: write
+  contents: write
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target configuration name (e.g. official-mt7981-ax3000m, official-x86-64, uluawrt-mt7981-ax3000m)"
+        required: true
+        type: string
+        default: "official-mt7981-ax3000m"
+      verboseBuildlog:
+        description: "Enable verbose compiler output (V=s)"
+        required: true
+        type: boolean
+        default: false
+      skipUpdateCheck:
+        description: "Force build despite repositories being up to date"
+        required: true
+        type: boolean
+        default: false
+      releaseAfterBuild:
+        description: "Automatically create GitHub Release after build"
+        required: true
+        type: boolean
+        default: false
+
+  # schedule:
+  #   - cron: "00 00 * * *"
+
+jobs:
+  build:
+    name: Build ${{ inputs.target || 'official-mt7981-ax3000m' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install project CLI
+        run: uv sync --dev
+
+      - name: Free runner disk space
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo timedatectl set-timezone "Asia/Shanghai"
+          sudo -E swapoff -a || true
+          sudo -E rm -f /swapfile || true
+          sudo -E docker image prune -a -f || true
+          sudo -E apt-get -y purge dotnet* firefox ghc* google* llvm* mono* mysql* openjdk* php* zulu* || true
+          sudo -E apt-get -y autoremove --purge || true
+          sudo -E rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /etc/mysql /etc/php /usr/local/share/boost || true
+          [ -n "$AGENT_TOOLSDIRECTORY" ] && sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Install build toolchain dependencies
+        run: |
+          sudo chmod +x immortalwrt_builder/scripts/install-deps.sh
+          sudo ./immortalwrt_builder/scripts/install-deps.sh
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+
+      - name: Check repository update
+        id: check_update
+        if: ${{ !(inputs.skipUpdateCheck || false) }}
+        run: |
+          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          uv run iwb check-update --target "$target_name" || {
+            echo "Repositories are up to date. Skipping build."
+            echo "skip_build=true" >> "$GITHUB_OUTPUT"
+          }
+
+      - name: Run ImmortalWrt build pipeline
+        id: build_step
+        if: ${{ steps.check_update.outputs.skip_build != 'true' }}
+        run: |
+          set -euo pipefail
+          start_ts=$(date +%s)
+          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          verbose_flag=""
+          if [ "${{ inputs.verboseBuildlog || false }}" = "true" ]; then
+            verbose_flag="--verbose"
+          fi
+
+          uv run iwb run --target "$target_name" $verbose_flag
+
+          end_ts=$(date +%s)
+          echo "duration=$((end_ts - start_ts))" >> "$GITHUB_OUTPUT"
+
+      - name: Upload firmware artifacts
+        if: ${{ steps.check_update.outputs.skip_build != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: immortalwrt-build-${{ inputs.target || 'official-mt7981-ax3000m' }}-${{ github.run_id }}
+          path: |
+            out/**
+            filedigest.md
+          include-hidden-files: true
+          compression-level: 0
+
+      - name: Generate release tag and name
+        id: generate_release_info
+        if: ${{ (inputs.releaseAfterBuild || false) && steps.check_update.outputs.skip_build != 'true' }}
+        run: |
+          tag_time=$(date +%Y%m%d%H%M%S)
+          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          echo "release_tag=${target_name}-${tag_time}" >> "$GITHUB_OUTPUT"
+          echo "release_name=ImmortalWrt-${target_name}-$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: ${{ (inputs.releaseAfterBuild || false) && steps.check_update.outputs.skip_build != 'true' }}
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          artifacts: "out/**"
+          name: ${{ steps.generate_release_info.outputs.release_name }}
+          tag: ${{ steps.generate_release_info.outputs.release_tag }}
+          bodyFile: filedigest.md
+
+      - name: Write CI build summary
+        if: always()
+        run: |
+          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          outcome="${{ steps.build_step.outcome || 'skipped' }}"
+          duration="${{ steps.build_step.outputs.duration || '0' }}"
+          uv run python immortalwrt_builder/scripts/write-ci-build-summary.py \
+            --target "$target_name" \
+            --outcome "$outcome" \
+            --duration-seconds "$duration"
