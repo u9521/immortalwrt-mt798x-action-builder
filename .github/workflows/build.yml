@@ -47,6 +47,7 @@ jobs:
         run: uv sync --dev
 
       - name: Free runner disk space
+        if: false
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
