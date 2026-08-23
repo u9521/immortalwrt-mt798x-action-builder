@@ -68,7 +68,9 @@ branch = "openwrt-23.05"
 
 [build]
 jobs = 8
-use_ccache = true
+
+[ccache]
+enabled = true
 """,
                 encoding="utf-8",
             )
@@ -94,7 +96,7 @@ verbose = true
             self.assertEqual(target.source.url, "https://github.com/immortalwrt/immortalwrt.git")
             self.assertEqual(target.source.branch, "master")
             self.assertEqual(target.build.jobs, 8)
-            self.assertTrue(target.build.use_ccache)
+            self.assertTrue(target.ccache.enabled)
             self.assertTrue(target.build.verbose)
 
     def test_rejects_circular_extends(self) -> None:

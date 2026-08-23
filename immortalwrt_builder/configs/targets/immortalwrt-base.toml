@@ -3,7 +3,7 @@ base = true
 
 [source]
 url = "https://github.com/immortalwrt/immortalwrt.git"
-branch = "openwrt-23.05"
+branch = "openwrt-25.12"
 depth = 1
 submodules = false
 
@@ -14,8 +14,12 @@ custom_feeds = []
 
 [build]
 download = true
-use_ccache = true
 ignore_errors = false
+
+[ccache]
+enabled = true
+max_size = "10G"
+export_stats = true
 
 [output]
 calculate_digest = true

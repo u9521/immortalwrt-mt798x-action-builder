@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .schema import (
     BuildConfig,
+    CcacheConfig,
     FeedsConfig,
     GitSourceConfig,
     OutputConfig,
@@ -18,7 +19,7 @@ from .schema import (
 )
 from .validator import validate_target
 
-_TARGET_ROOT_KEYS = {"name", "base", "extends", "source", "feeds", "patch", "diy", "build", "output"}
+_TARGET_ROOT_KEYS = {"name", "base", "extends", "source", "feeds", "patch", "diy", "build", "ccache", "output"}
 _SOURCE_KEYS = {"url", "branch", "tag", "commit", "depth", "submodules"}
 _FEEDS_KEYS = {"update", "install", "custom_feeds", "conf_file"}
 _PATCH_KEYS = {
@@ -32,16 +33,17 @@ _PATCH_KEYS = {
 _BUILD_KEYS = {
     "defconfig_path",
     "defconfig",
-    "target_profile",
     "jobs",
     "verbose",
     "download",
-    "use_ccache",
-    "ccache_dir",
-    "ccache_max_size",
-    "ccache_export_stats",
-    "ccache_stats_log",
     "ignore_errors",
+}
+_CCACHE_KEYS = {
+    "enabled",
+    "dir",
+    "max_size",
+    "export_stats",
+    "stats_log",
 }
 _OUTPUT_KEYS = {"dist_dir", "target_dir", "packages_dir", "calculate_digest", "firmware_patterns"}
 
@@ -65,6 +67,7 @@ def parse_target_definition_file(
     feeds = _parse_feeds_config(payload.get("feeds"), path)
     patch = _parse_patch_config(payload.get("patch") or payload.get("diy"), path, patchs_root=patchs_root)
     build = _parse_build_config(payload.get("build"), path, defconfigs_root=defconfigs_root)
+    ccache = _parse_ccache_config(payload.get("ccache"), path)
     output = _parse_output_config(payload.get("output"), path)
 
     target = TargetConfig(
@@ -74,6 +77,7 @@ def parse_target_definition_file(
         feeds=feeds,
         patch=patch,
         build=build,
+        ccache=ccache,
         output=output,
         config_path=path,
     )
@@ -144,33 +148,36 @@ def _parse_build_config(value: object, config_path: Path, *, defconfigs_root: Pa
     defconfig_str = _optional_string(defconfig_raw, field="build.defconfig_path", config_path=config_path)
     defconfig_path = _resolve_relative_path(defconfig_str, defconfigs_root, config_path.parent)
 
-    ccache_dir_str = _optional_string(value.get("ccache_dir"), field="build.ccache_dir", config_path=config_path)
-    ccache_dir_path = (config_path.parent / ccache_dir_str).resolve() if ccache_dir_str else None
-
     return BuildConfig(
         defconfig_path=defconfig_path,
-        target_profile=_optional_string(
-            value.get("target_profile"), field="build.target_profile", config_path=config_path
-        ),
         jobs=_optional_int(value.get("jobs"), default=os.cpu_count() or 1, field="build.jobs", config_path=config_path),
         verbose=_optional_bool(value.get("verbose"), default=False, field="build.verbose", config_path=config_path),
         download=_optional_bool(value.get("download"), default=True, field="build.download", config_path=config_path),
-        use_ccache=_optional_bool(
-            value.get("use_ccache"), default=True, field="build.use_ccache", config_path=config_path
-        ),
-        ccache_dir=ccache_dir_path,
-        ccache_max_size=_optional_string(
-            value.get("ccache_max_size"), field="build.ccache_max_size", config_path=config_path
-        )
-        or "10G",
-        ccache_export_stats=_optional_bool(
-            value.get("ccache_export_stats"), default=True, field="build.ccache_export_stats", config_path=config_path
-        ),
-        ccache_stats_log=_optional_bool(
-            value.get("ccache_stats_log"), default=False, field="build.ccache_stats_log", config_path=config_path
-        ),
         ignore_errors=_optional_bool(
             value.get("ignore_errors"), default=False, field="build.ignore_errors", config_path=config_path
+        ),
+    )
+
+
+def _parse_ccache_config(value: object, config_path: Path) -> CcacheConfig:
+    if value is None:
+        return CcacheConfig()
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid 'ccache' table in {config_path}: expected mapping")
+    _reject_unknown_keys(value, _CCACHE_KEYS, "ccache", config_path)
+
+    dir_str = _optional_string(value.get("dir"), field="ccache.dir", config_path=config_path)
+    dir_path = (config_path.parent / dir_str).resolve() if dir_str else None
+
+    return CcacheConfig(
+        enabled=_optional_bool(value.get("enabled"), default=True, field="ccache.enabled", config_path=config_path),
+        dir=dir_path,
+        max_size=_optional_string(value.get("max_size"), field="ccache.max_size", config_path=config_path) or "10G",
+        export_stats=_optional_bool(
+            value.get("export_stats"), default=True, field="ccache.export_stats", config_path=config_path
+        ),
+        stats_log=_optional_bool(
+            value.get("stats_log"), default=False, field="ccache.stats_log", config_path=config_path
         ),
     )
 

@@ -36,16 +36,19 @@ class PatchConfig:
 @dataclass(slots=True)
 class BuildConfig:
     defconfig_path: Path | None = None
-    target_profile: str | None = None
     jobs: int = os.cpu_count() or 1
     verbose: bool = False
     download: bool = True
-    use_ccache: bool = True
-    ccache_dir: Path | None = None
-    ccache_max_size: str = "10G"
-    ccache_export_stats: bool = True
-    ccache_stats_log: bool = False
     ignore_errors: bool = False
+
+
+@dataclass(slots=True)
+class CcacheConfig:
+    enabled: bool = True
+    dir: Path | None = None
+    max_size: str = "10G"
+    export_stats: bool = True
+    stats_log: bool = False
 
 
 @dataclass(slots=True)
@@ -77,5 +80,6 @@ class TargetConfig:
     feeds: FeedsConfig = field(default_factory=FeedsConfig)
     patch: PatchConfig = field(default_factory=PatchConfig)
     build: BuildConfig = field(default_factory=BuildConfig)
+    ccache: CcacheConfig = field(default_factory=CcacheConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     config_path: Path = Path()

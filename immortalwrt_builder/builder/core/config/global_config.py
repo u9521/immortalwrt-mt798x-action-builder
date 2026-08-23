@@ -16,7 +16,6 @@ class GlobalConfig:
     default_jobs: int = field(default_factory=lambda: os.cpu_count() or 1)
     default_depth: int = 1
     default_download: bool = True
-    default_use_ccache: bool = True
     work_root: Path | None = None
 
 
@@ -49,6 +48,5 @@ def load_global_config(project_root: Path | None = None) -> GlobalConfig:
         default_jobs=general.get("default_jobs", os.cpu_count() or 1),
         default_depth=general.get("default_depth", 1),
         default_download=general.get("default_download", True),
-        default_use_ccache=general.get("default_use_ccache", True),
         work_root=work_root_path,
     )

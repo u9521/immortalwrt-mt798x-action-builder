@@ -13,8 +13,8 @@ extends = "immortalwrt-base"       # Name of parent target config to inherit fro
 
 [source]
 url = "https://github.com/immortalwrt/immortalwrt.git"  # Git repo URL
-branch = "openwrt-23.05"                                # Branch name
-tag = "v23.05.3"                                        # Optional Git tag
+branch = "openwrt-25.12"                                # Branch name
+tag = "v25.12.0"                                        # Optional Git tag
 commit = "abc12345..."                                  # Optional Git commit SHA
 depth = 1                                               # Shallow clone depth (default 1)
 submodules = false                                      # Sync git submodules (default false)
@@ -34,13 +34,17 @@ post_config_patches = ["post_config.py"]                # Python patches execute
 
 [build]
 defconfig = "ax3000m.config"                            # Path to defconfig file (e.g. from ./scripts/diffconfig.sh)
-target_profile = "mediatek/mt7981/cmcc_rax3000m"        # Optional target profile string
 jobs = 16                                               # Parallel jobs (default: CPU threads count)
 verbose = false                                         # Verbose compilation (V=s)
 download = true                                         # Run make download (default: true)
-use_ccache = true                                       # Enable compiler cache (default: true)
-ccache_max_size = "10G"                                 # ccache storage cap (default: 10G)
 ignore_errors = false                                   # Ignore compilation errors (default: false)
+
+[ccache]
+enabled = true                                          # Enable compiler cache (default: true)
+dir = "/path/to/custom/ccache"                          # Custom CCACHE_DIR (default: cache/<target>/ccache)
+max_size = "10G"                                        # CCACHE_MAXSIZE storage cap (default: 10G)
+export_stats = true                                     # Export ccache-stats.json/txt to infos/ (default: true)
+stats_log = false                                       # Export detailed per-file log to infos/ (default: false)
 
 [output]
 dist_dir = "official-mt7981-ax3000m"                    # Output subfolder in out/
@@ -67,7 +71,6 @@ Global settings are stored in `immortalwrt_builder/configs/global.toml`.
 [general]
 default_depth = 1
 default_download = true
-default_use_ccache = true
 
 [workspace]
 # Custom workspace root directory for source-code, cache, and outputs.

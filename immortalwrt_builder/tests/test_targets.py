@@ -27,7 +27,7 @@ class CheckedInTargetsTests(unittest.TestCase):
         self.assertEqual(target.name, "official-mt7981-ax3000m")
         self.assertFalse(target.base)
         self.assertEqual(target.source.url, "https://github.com/immortalwrt/immortalwrt.git")
-        self.assertEqual(target.source.branch, "openwrt-23.05")
+        self.assertEqual(target.source.branch, "openwrt-25.12")
         self.assertIsNotNone(target.build.defconfig_path)
         assert target.build.defconfig_path is not None
         self.assertTrue(target.build.defconfig_path.exists())

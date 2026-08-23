@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from immortalwrt_builder.builder.core.build import ccache
-from immortalwrt_builder.builder.core.config.schema import BuildConfig, GitSourceConfig, TargetConfig
+from immortalwrt_builder.builder.core.config.schema import CcacheConfig, GitSourceConfig, TargetConfig
 
 
 class CcacheTests(unittest.TestCase):
@@ -42,12 +42,12 @@ class CcacheTests(unittest.TestCase):
 
             target = TargetConfig(name="test", source=GitSourceConfig(url="https://example.com"))
 
-            # 1. Resolves from .config when target ccache_dir is None
+            # 1. Resolves from .config when target.ccache.dir is None
             resolved = ccache.resolve_effective_ccache_dir(target, work_root, source_dir)
             self.assertEqual(resolved, (source_dir / ".my_ccache").resolve())
 
-            # 2. Overridden when target.build.ccache_dir is explicitly specified
-            target.build.ccache_dir = Path("/custom/cache/dir")
+            # 2. Overridden when target.ccache.dir is explicitly specified
+            target.ccache.dir = Path("/custom/cache/dir")
             resolved_custom = ccache.resolve_effective_ccache_dir(target, work_root, source_dir)
             self.assertEqual(resolved_custom, Path("/custom/cache/dir").resolve())
 
@@ -69,10 +69,10 @@ class CcacheTests(unittest.TestCase):
             target = TargetConfig(
                 name="test",
                 source=GitSourceConfig(url="https://example.com"),
-                build=BuildConfig(
-                    use_ccache=True,
-                    ccache_max_size="20G",
-                    ccache_stats_log=True,
+                ccache=CcacheConfig(
+                    enabled=True,
+                    max_size="20G",
+                    stats_log=True,
                 ),
             )
 

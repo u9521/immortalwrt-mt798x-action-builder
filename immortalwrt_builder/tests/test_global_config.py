@@ -20,7 +20,6 @@ class GlobalConfigTests(unittest.TestCase):
             cfg = load_global_config(project_root)
             self.assertEqual(cfg.default_depth, 1)
             self.assertTrue(cfg.default_download)
-            self.assertTrue(cfg.default_use_ccache)
             self.assertIsNone(cfg.work_root)
 
     def test_load_global_config_with_workspace_work_root(self) -> None:

@@ -28,9 +28,10 @@ def sync_source(
         pass
 
     work_root = source_dir.parent.parent if source_dir.parent.name == layout.SOURCE_CODE_DIR_NAME else Path.cwd()
+    project_root = Path.cwd()
     local_commit = ""
     try:
-        local_commit = get_local_head_commit(work_root)
+        local_commit = get_local_head_commit(project_root)
     except Exception:
         pass
 

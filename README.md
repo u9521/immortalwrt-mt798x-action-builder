@@ -83,13 +83,16 @@ uv run iwb --help
 uv run iwb show-target --target official-mt7981-ax3000m
 ```
 
-### Install Host Build Dependencies
+### Install / Uninstall Host Build Dependencies
 
 On Ubuntu 22.04 or 24.04:
 
 ```bash
-sudo chmod +x immortalwrt_builder/scripts/install-deps.sh
-sudo ./immortalwrt_builder/scripts/install-deps.sh
+# Install dependencies and record newly installed packages to installed-deps.txt
+sudo ./immortalwrt_builder/scripts/install-deps.sh --record installed-deps.txt
+
+# Later, uninstall only the dependencies recorded in that file
+sudo ./immortalwrt_builder/scripts/uninstall-deps.sh --file installed-deps.txt
 ```
 
 ---
@@ -123,13 +126,17 @@ name = "official-mt7981-ax3000m"
 extends = "immortalwrt-base"
 
 [source]
-branch = "openwrt-23.05"
+branch = "openwrt-25.12"
 
 [patch]
 post_feeds_patches = ["custom_tweaks.py"]
 
 [build]
 defconfig = "ax3000m.config"
+
+[ccache]
+enabled = true
+max_size = "10G"
 
 [output]
 dist_dir = "official-mt7981-ax3000m"

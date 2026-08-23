@@ -53,16 +53,17 @@ def handle_show_target(args: argparse.Namespace) -> int:
         },
         "build": {
             "defconfig_path": str(target.build.defconfig_path) if target.build.defconfig_path else None,
-            "target_profile": target.build.target_profile,
             "jobs": target.build.jobs,
             "verbose": target.build.verbose,
             "download": target.build.download,
-            "use_ccache": target.build.use_ccache,
-            "ccache_dir": str(target.build.ccache_dir) if target.build.ccache_dir else None,
-            "ccache_max_size": target.build.ccache_max_size,
-            "ccache_export_stats": target.build.ccache_export_stats,
-            "ccache_stats_log": target.build.ccache_stats_log,
             "ignore_errors": target.build.ignore_errors,
+        },
+        "ccache": {
+            "enabled": target.ccache.enabled,
+            "dir": str(target.ccache.dir) if target.ccache.dir else None,
+            "max_size": target.ccache.max_size,
+            "export_stats": target.ccache.export_stats,
+            "stats_log": target.ccache.stats_log,
         },
         "output": {
             "dist_dir": target.output.dist_dir,
@@ -82,6 +83,7 @@ def handle_show_target(args: argparse.Namespace) -> int:
         print(f"  Source URL: {target.source.url} (branch: {target.source.branch or 'HEAD'})")
         print(f"  Defconfig: {target.build.defconfig_path or '(none)'}")
         print(f"  Jobs: {target.build.jobs}, Verbose: {target.build.verbose}")
+        print(f"  ccache: enabled={target.ccache.enabled}, max_size={target.ccache.max_size}")
         if target.patch.pre_feeds_patches:
             print(f"  Pre-feeds Patches: {', '.join(p.name for p in target.patch.pre_feeds_patches)}")
         if target.patch.post_feeds_patches:

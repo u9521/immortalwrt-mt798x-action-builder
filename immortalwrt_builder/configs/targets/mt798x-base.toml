@@ -13,8 +13,12 @@ install = true
 
 [build]
 download = true
-use_ccache = true
 ignore_errors = false
+
+[ccache]
+enabled = true
+max_size = "10G"
+export_stats = true
 
 [output]
 target_dir = "bin/targets/mediatek/mt7981"

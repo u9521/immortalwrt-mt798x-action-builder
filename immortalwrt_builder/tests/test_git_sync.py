@@ -44,6 +44,7 @@ class GitSyncTests(unittest.TestCase):
     def test_get_local_head_commit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_dir = Path(temp_dir)
+            (repo_dir / ".git").mkdir()
             with mock.patch(
                 "immortalwrt_builder.builder.core.sync.git.run_command",
                 return_value=subprocess.CompletedProcess([], 0, stdout="abc12345\n"),

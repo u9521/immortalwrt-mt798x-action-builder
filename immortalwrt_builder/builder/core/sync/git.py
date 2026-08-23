@@ -49,8 +49,16 @@ def clone_or_fetch_repo(source: GitSourceConfig, destination: Path) -> None:
 
 
 def get_local_head_commit(repo_dir: Path) -> str:
-    result = run_command(["git", "rev-parse", "HEAD"], cwd=repo_dir, capture_output=True)
-    return result.stdout.strip()
+    git_dir = repo_dir / ".git"
+    if not git_dir.exists() and not (repo_dir / "HEAD").exists():
+        return ""
+    try:
+        result = run_command(["git", "rev-parse", "HEAD"], cwd=repo_dir, check=False, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return ""
 
 
 def get_remote_head_commit(url: str, branch_or_tag: str) -> str | None:

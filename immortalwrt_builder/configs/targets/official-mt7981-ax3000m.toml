@@ -2,12 +2,13 @@ name = "official-mt7981-ax3000m"
 extends = "immortalwrt-base"
 
 [source]
-branch = "openwrt-23.05"
+branch = "openwrt-25.12"
 
 [build]
-defconfig = "ax3000m.config"
+defconfig = "rax3000m-base.config"
 
 [output]
 dist_dir = "official-mt7981-ax3000m"
 target_dir = "bin/targets/mediatek/filogic"
 packages_dir = "bin/packages"
+

@@ -42,8 +42,8 @@ def resolve_effective_ccache_dir(
     work_root: Path,
     source_dir: Path,
 ) -> Path:
-    if target.build.ccache_dir is not None:
-        return target.build.ccache_dir.resolve()
+    if target.ccache.dir is not None:
+        return target.ccache.dir.resolve()
 
     dot_config = source_dir / ".config"
     _, config_dir = is_openwrt_ccache_enabled(dot_config)
@@ -78,9 +78,9 @@ def setup_ccache_environment(
     ensure_directory(infos_dir)
 
     env["CCACHE_DIR"] = str(ccache_dir.resolve())
-    env["CCACHE_MAXSIZE"] = target.build.ccache_max_size
+    env["CCACHE_MAXSIZE"] = target.ccache.max_size
 
-    if target.build.ccache_stats_log:
+    if target.ccache.stats_log:
         stats_log_file = (infos_dir / "ccache-stats.log").resolve()
         env["CCACHE_STATS_LOG"] = str(stats_log_file)
         print(f"  + ccache stats log directed to: {stats_log_file}", flush=True)
@@ -88,7 +88,7 @@ def setup_ccache_environment(
     if is_ccache_available():
         try:
             run_command(
-                ["ccache", "-M", target.build.ccache_max_size],
+                ["ccache", "-M", target.ccache.max_size],
                 env=env,
                 check=False,
                 capture_output=True,

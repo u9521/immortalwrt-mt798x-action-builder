@@ -83,7 +83,7 @@ def build_firmware(
 
     dot_config = source_dir / ".config"
     ccache_in_config, _ = is_openwrt_ccache_enabled(dot_config)
-    ccache_active = ccache_in_config or target.build.use_ccache
+    ccache_active = ccache_in_config or target.ccache.enabled
 
     env = os.environ.copy()
     ccache_dir: Path | None = None
@@ -91,7 +91,7 @@ def build_firmware(
 
     if ccache_active:
         ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
-        print_ccache_banner(ccache_dir, target.build.ccache_max_size)
+        print_ccache_banner(ccache_dir, target.ccache.max_size)
         env = setup_ccache_environment(target, ccache_dir, infos_dir, base_env=env)
 
     cmd = ["make", f"-j{resolved_jobs}"]
@@ -112,7 +112,7 @@ def build_firmware(
             raise
     finally:
         if ccache_active and ccache_dir is not None:
-            if target.build.ccache_export_stats:
+            if target.ccache.export_stats:
                 export_ccache_stats(ccache_dir, infos_dir)
             else:
                 show_ccache_stats(ccache_dir)
