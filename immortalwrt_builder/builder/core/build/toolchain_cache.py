@@ -66,15 +66,15 @@ def compute_toolchain_key(
             if target_subtarget == "unknown" and len(parts) >= 2 and parts[1] != "DEVICE":
                 target_subtarget = parts[1]
 
-    # Include source branch / repo url in hasher
+    # Include source ref (commit > tag > branch) and repo url in hasher
     if target.source.url:
-        hasher.update(target.source.url.encode("utf-8"))
-    if target.source.branch:
-        hasher.update(target.source.branch.encode("utf-8"))
-    if target.source.tag:
-        hasher.update(target.source.tag.encode("utf-8"))
+        hasher.update(target.source.url.encode())
     if target.source.commit:
-        hasher.update(target.source.commit.encode("utf-8"))
+        hasher.update(f"commit:{target.source.commit}".encode())
+    elif target.source.tag:
+        hasher.update(f"tag:{target.source.tag}".encode())
+    elif target.source.branch:
+        hasher.update(f"branch:{target.source.branch}".encode())
 
     config_signature = f"{arch}|{target_board}|{target_subtarget}|{gcc_ver}|{libc}|{binutils_ver}"
     hasher.update(config_signature.encode("utf-8"))

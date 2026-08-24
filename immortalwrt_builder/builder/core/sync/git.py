@@ -18,24 +18,32 @@ def clone_or_fetch_repo(source: GitSourceConfig, destination: Path) -> None:
 
     if git_dir.exists():
         print(f"Updating existing repository at {destination}...", flush=True)
-        target_ref = source.branch or source.tag or "HEAD"
-        run_command(["git", "fetch", "origin", target_ref], cwd=destination)
-        if source.branch:
-            run_command(["git", "checkout", "-B", source.branch, f"origin/{source.branch}"], cwd=destination)
-        elif source.tag:
-            run_command(["git", "checkout", f"tags/{source.tag}"], cwd=destination)
-        elif source.commit:
+        if source.commit:
+            run_command(["git", "fetch", "origin"], cwd=destination)
             run_command(["git", "checkout", source.commit], cwd=destination)
+        elif source.tag:
+            run_command(["git", "fetch", "origin", f"tags/{source.tag}"], cwd=destination)
+            run_command(["git", "checkout", f"tags/{source.tag}"], cwd=destination)
+        elif source.branch:
+            run_command(["git", "fetch", "origin", source.branch], cwd=destination)
+            run_command(["git", "checkout", "-B", source.branch, f"origin/{source.branch}"], cwd=destination)
+        else:
+            run_command(["git", "fetch", "origin", "HEAD"], cwd=destination)
+            run_command(["git", "checkout", "FETCH_HEAD"], cwd=destination)
     else:
         print(f"Cloning repository from {source.url} into {destination}...", flush=True)
         ensure_directory(destination.parent)
         clone_cmd = ["git", "clone"]
         if source.depth and source.depth > 0 and not source.commit:
             clone_cmd.extend(["--depth", str(source.depth)])
-        if source.branch:
-            clone_cmd.extend(["-b", source.branch])
+
+        if source.commit:
+            # Commit SHA checkout handled after clone
+            pass
         elif source.tag:
             clone_cmd.extend(["-b", source.tag])
+        elif source.branch:
+            clone_cmd.extend(["-b", source.branch])
 
         clone_cmd.extend([source.url, str(destination)])
         run_command(clone_cmd)

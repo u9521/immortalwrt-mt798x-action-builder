@@ -99,6 +99,42 @@ verbose = true
             self.assertTrue(target.ccache.enabled)
             self.assertTrue(target.build.verbose)
 
+            # Test specifying tag in child overrides base branch
+            child_tag_file = dir_path / "child_tag.toml"
+            child_tag_file.write_text(
+                """
+name = "child_tag"
+extends = "base"
+
+[source]
+tag = "v24.10.0"
+""",
+                encoding="utf-8",
+            )
+            target_tag = parse_target_definition_file(child_tag_file)
+            self.assertEqual(target_tag.name, "child_tag")
+            self.assertEqual(target_tag.source.tag, "v24.10.0")
+            self.assertIsNone(target_tag.source.branch)
+            self.assertIsNone(target_tag.source.commit)
+
+            # Test specifying commit in child overrides base branch
+            child_commit_file = dir_path / "child_commit.toml"
+            child_commit_file.write_text(
+                """
+name = "child_commit"
+extends = "base"
+
+[source]
+commit = "abc123456789"
+""",
+                encoding="utf-8",
+            )
+            target_commit = parse_target_definition_file(child_commit_file)
+            self.assertEqual(target_commit.name, "child_commit")
+            self.assertEqual(target_commit.source.commit, "abc123456789")
+            self.assertIsNone(target_commit.source.branch)
+            self.assertIsNone(target_commit.source.tag)
+
     def test_parse_advanced_ccache_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             dir_path = Path(temp_dir)

@@ -40,10 +40,17 @@ def handle_check_update(args: argparse.Namespace) -> int:
 
     # 2. Get remote upstream commit
     current_remote_commit = ""
-    if target.source.url and target.source.branch:
-        remote_sha = get_remote_head_commit(target.source.url, target.source.branch)
-        if remote_sha:
-            current_remote_commit = remote_sha
+    if target.source.url:
+        if target.source.commit:
+            current_remote_commit = target.source.commit
+        elif target.source.tag:
+            remote_sha = get_remote_head_commit(target.source.url, target.source.tag)
+            if remote_sha:
+                current_remote_commit = remote_sha
+        elif target.source.branch:
+            remote_sha = get_remote_head_commit(target.source.url, target.source.branch)
+            if remote_sha:
+                current_remote_commit = remote_sha
 
     # 3. Read cached build metadata
     metadata_file = layout.target_metadata_file(work_root, target.name)

@@ -359,7 +359,15 @@ def _merge_payload(base: dict[str, object], override: dict[str, object]) -> dict
     for key, value in override.items():
         base_value = merged.get(key)
         if isinstance(base_value, dict) and isinstance(value, dict):
-            merged[key] = _merge_payload(base_value, value)
+            merged_sub = _merge_payload(base_value, value)
+            if key == "source":
+                if "tag" in value and "branch" not in value:
+                    merged_sub.pop("branch", None)
+                elif "commit" in value and "branch" not in value:
+                    merged_sub.pop("branch", None)
+                elif "branch" in value and "tag" not in value:
+                    merged_sub.pop("tag", None)
+            merged[key] = merged_sub
             continue
         merged[key] = value
     return merged

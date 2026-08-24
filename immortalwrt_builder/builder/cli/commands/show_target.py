@@ -90,7 +90,15 @@ def handle_show_target(args: argparse.Namespace) -> int:
         print(f"\nTarget: {target.name}")
         print(f"  Config: {target.config_path}")
         print(f"  Workspace: {work_root}")
-        print(f"  Source URL: {target.source.url} (branch: {target.source.branch or 'HEAD'})")
+        if target.source.commit:
+            ref_desc = f"commit: {target.source.commit}"
+        elif target.source.tag:
+            ref_desc = f"tag: {target.source.tag}"
+        elif target.source.branch:
+            ref_desc = f"branch: {target.source.branch}"
+        else:
+            ref_desc = "HEAD"
+        print(f"  Source URL: {target.source.url} ({ref_desc})")
         print(f"  Defconfig: {target.build.defconfig_path or '(none)'}")
         print(f"  Jobs: {target.build.jobs}, Verbose: {target.build.verbose}")
         print(f"  ccache: enabled={target.ccache.enabled}, max_size={target.ccache.max_size}")
