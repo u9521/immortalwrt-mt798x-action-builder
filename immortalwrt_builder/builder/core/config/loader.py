@@ -56,6 +56,11 @@ _CCACHE_KEYS = {
     "dir",
     "max_size",
     "stats_log",
+    "compiler_check",
+    "sloppiness",
+    "hash_dir",
+    "base_dir",
+    "log_file",
 }
 _TOOLCHAIN_CACHE_KEYS = {
     "enabled",
@@ -189,6 +194,18 @@ def _parse_ccache_config(value: object, config_path: Path) -> CcacheConfig:
     dir_str = _optional_string(value.get("dir"), field="ccache.dir", config_path=config_path)
     dir_path = Path(dir_str) if dir_str else None
 
+    base_dir_str = _optional_string(value.get("base_dir"), field="ccache.base_dir", config_path=config_path)
+    base_dir_path = Path(base_dir_str) if base_dir_str else None
+
+    compiler_check = (
+        _optional_string(value.get("compiler_check"), field="ccache.compiler_check", config_path=config_path)
+        or "%compiler% -v"
+    )
+    sloppiness = (
+        _optional_string(value.get("sloppiness"), field="ccache.sloppiness", config_path=config_path)
+        or "time_macros,include_file_mtime,include_file_ctime,file_macro"
+    )
+
     return CcacheConfig(
         enabled=_optional_bool(value.get("enabled"), default=True, field="ccache.enabled", config_path=config_path),
         dir=dir_path,
@@ -196,6 +213,11 @@ def _parse_ccache_config(value: object, config_path: Path) -> CcacheConfig:
         stats_log=_optional_bool(
             value.get("stats_log"), default=False, field="ccache.stats_log", config_path=config_path
         ),
+        compiler_check=compiler_check,
+        sloppiness=sloppiness,
+        hash_dir=_optional_bool(value.get("hash_dir"), default=False, field="ccache.hash_dir", config_path=config_path),
+        base_dir=base_dir_path,
+        log_file=_optional_bool(value.get("log_file"), default=True, field="ccache.log_file", config_path=config_path),
     )
 
 

@@ -146,34 +146,50 @@ def resolve_toolchain_archive_path(
 
 
 def touch_toolchain_stamps(source_dir: Path) -> int:
-    """Touch all stamp files in staging_dir so OpenWrt timestamp.pl considers them fresh."""
+    """Touch stamp files in staging_dir (host, toolchain-*, hostpkg) so OpenWrt considers them fresh.
+
+    Uses current system time (mtime <= now) to avoid triggering GNU Make's Clock Skew warning.
+    Explicitly excludes target-* directories so target rootfs/package stamps remain isolated.
+    """
     source_dir = source_dir.resolve()
     staging_dir = source_dir / "staging_dir"
     if not staging_dir.exists():
         return 0
 
-    now = time.time() + 60  # +60s into future to guarantee newer than any git checkout
+    now = time.time()
     count = 0
 
-    # Search for stamp directories in host, toolchain-*, and hostpkg
-    for stamp_dir in staging_dir.glob("**/stamp"):
-        if stamp_dir.is_dir():
-            for stamp_file in stamp_dir.rglob("*"):
-                if stamp_file.is_file():
-                    try:
-                        os.utime(stamp_file, (now, now))
-                        count += 1
-                    except OSError:
-                        pass
+    # Collect toolchain-related directories only (host, hostpkg, packages, and toolchain-*)
+    toolchain_dirs: list[Path] = []
+    for item in ("host", "hostpkg", "packages"):
+        d = staging_dir / item
+        if d.is_dir():
+            toolchain_dirs.append(d)
 
-    # Touch top-level stamps in staging_dir if present
-    for top_stamp in staging_dir.glob(".built*"):
-        if top_stamp.is_file():
-            try:
-                os.utime(top_stamp, (now, now))
-                count += 1
-            except OSError:
-                pass
+    for tc_dir in staging_dir.glob("toolchain-*"):
+        if tc_dir.is_dir():
+            toolchain_dirs.append(tc_dir)
+
+    for base_dir in toolchain_dirs:
+        # Search for stamp directories
+        for stamp_dir in base_dir.glob("**/stamp"):
+            if stamp_dir.is_dir():
+                for stamp_file in stamp_dir.rglob("*"):
+                    if stamp_file.is_file():
+                        try:
+                            os.utime(stamp_file, (now, now))
+                            count += 1
+                        except OSError:
+                            pass
+
+        # Touch top-level built indicators within toolchain components
+        for top_stamp in base_dir.glob(".built*"):
+            if top_stamp.is_file():
+                try:
+                    os.utime(top_stamp, (now, now))
+                    count += 1
+                except OSError:
+                    pass
 
     return count
 

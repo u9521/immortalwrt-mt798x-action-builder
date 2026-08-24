@@ -143,6 +143,10 @@ def print_ccache_banner(
     ccache_dir: Path,
     max_size: str | None = None,
     ccache_bin: str | None = None,
+    *,
+    compiler_check: str | None = None,
+    sloppiness: str | None = None,
+    log_file: Path | None = None,
 ) -> None:
     print("\n" + "=" * 70, flush=True)
     print("  [CCACHE ENABLED] OpenWrt native ccache acceleration is active!", flush=True)
@@ -151,6 +155,12 @@ def print_ccache_banner(
     print(f"  Cache Directory: {ccache_dir}", flush=True)
     if max_size:
         print(f"  Max Cache Size:  {max_size}", flush=True)
+    if compiler_check:
+        print(f"  Compiler Check:  {compiler_check}", flush=True)
+    if sloppiness:
+        print(f"  Sloppiness:      {sloppiness}", flush=True)
+    if log_file:
+        print(f"  Debug Log File:  {log_file}", flush=True)
     print("=" * 70 + "\n", flush=True)
 
 
@@ -168,10 +178,37 @@ def setup_ccache_environment(
     resolved_ccache_dir = ccache_dir.resolve()
     env["CCACHE_DIR"] = str(resolved_ccache_dir)
     env["CCACHE_MAXSIZE"] = target.ccache.max_size
+    env["CCACHE_COMPILERCHECK"] = target.ccache.compiler_check
+    env["CCACHE_SLOPPINESS"] = target.ccache.sloppiness
+
+    if not target.ccache.hash_dir:
+        env["CCACHE_NOHASHDIR"] = "1"
+
+    effective_base_dir: Path | None = None
+    if target.ccache.base_dir is not None:
+        effective_base_dir = target.ccache.base_dir.resolve()
+    elif source_dir is not None:
+        effective_base_dir = source_dir.resolve()
+
+    if effective_base_dir is not None:
+        env["CCACHE_BASEDIR"] = str(effective_base_dir)
 
     # Write persistent ccache.conf inside the cache directory
     ccache_conf_file = resolved_ccache_dir / "ccache.conf"
-    conf_lines = [f"max_size = {target.ccache.max_size}"]
+    conf_lines = [
+        f"max_size = {target.ccache.max_size}",
+        f"compiler_check = {target.ccache.compiler_check}",
+        f"sloppiness = {target.ccache.sloppiness}",
+        f"hash_dir = {'true' if target.ccache.hash_dir else 'false'}",
+    ]
+
+    if effective_base_dir is not None:
+        conf_lines.append(f"base_dir = {effective_base_dir}")
+
+    if target.ccache.log_file:
+        ccache_log_file = (infos_dir / "ccache.log").resolve()
+        env["CCACHE_LOGFILE"] = str(ccache_log_file)
+        conf_lines.append(f"log_file = {ccache_log_file}")
 
     if target.ccache.stats_log:
         stats_log_file = (infos_dir / "ccache-stats.log").resolve()

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import time
 import unittest
@@ -93,33 +94,43 @@ class ToolchainCacheTests(unittest.TestCase):
             key2 = compute_toolchain_key(target1, source_dir)
             self.assertNotEqual(key1, key2)
 
-    def test_touch_toolchain_stamps_refreshes_mtime(self) -> None:
+    def test_touch_toolchain_stamps_refreshes_mtime_without_clock_skew(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source_dir = Path(temp_dir)
             staging_dir = source_dir / "staging_dir"
             host_stamp_dir = staging_dir / "host" / "stamp"
             tc_stamp_dir = staging_dir / "toolchain-aarch64_cortex-a53_gcc-14.3.0_musl" / "stamp"
+            target_stamp_dir = staging_dir / "target-aarch64_cortex-a53_musl" / "stamp"
             host_stamp_dir.mkdir(parents=True)
             tc_stamp_dir.mkdir(parents=True)
+            target_stamp_dir.mkdir(parents=True)
 
             host_stamp = host_stamp_dir / ".tools_compile_123"
             host_stamp.write_text("", encoding="utf-8")
             tc_stamp = tc_stamp_dir / ".toolchain_compile"
             tc_stamp.write_text("", encoding="utf-8")
+            target_stamp = target_stamp_dir / ".target_prereq"
+            target_stamp.write_text("", encoding="utf-8")
 
             # Set past mtime
             past_time = time.time() - 3600
-            import os
-
             os.utime(host_stamp, (past_time, past_time))
             os.utime(tc_stamp, (past_time, past_time))
+            os.utime(target_stamp, (past_time, past_time))
 
+            before = time.time()
             touched = touch_toolchain_stamps(source_dir)
-            self.assertEqual(touched, 2)
+            after = time.time()
 
-            now = time.time()
-            self.assertGreater(host_stamp.stat().st_mtime, now)
-            self.assertGreater(tc_stamp.stat().st_mtime, now)
+            # Only toolchain components (host and toolchain-*) are touched, target-* is untouched
+            self.assertEqual(touched, 2)
+            self.assertGreaterEqual(host_stamp.stat().st_mtime, before - 1)
+            self.assertLessEqual(host_stamp.stat().st_mtime, after + 1)
+            self.assertGreaterEqual(tc_stamp.stat().st_mtime, before - 1)
+            self.assertLessEqual(tc_stamp.stat().st_mtime, after + 1)
+
+            # Target stamp must remain in the past (isolated from toolchain touch)
+            self.assertAlmostEqual(target_stamp.stat().st_mtime, past_time, delta=2)
 
     def test_is_toolchain_cached_detection(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -48,6 +48,11 @@ class CcacheConfig:
     dir: Path | None = None
     max_size: str = "10G"
     stats_log: bool = False
+    compiler_check: str = "%compiler% -v"
+    sloppiness: str = "time_macros,include_file_mtime,include_file_ctime,file_macro"
+    hash_dir: bool = False
+    base_dir: Path | None = None
+    log_file: bool = True
 
 
 @dataclass(slots=True)

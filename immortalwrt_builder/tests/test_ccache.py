@@ -112,6 +112,8 @@ class CcacheTests(unittest.TestCase):
     def test_setup_ccache_environment_sets_env_and_stats_log(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             work_root = Path(temp_dir)
+            source_dir = work_root / "source"
+            source_dir.mkdir()
             ccache_dir = work_root / "cache"
             infos_dir = work_root / "infos"
             target = TargetConfig(
@@ -121,13 +123,36 @@ class CcacheTests(unittest.TestCase):
                     enabled=True,
                     max_size="20G",
                     stats_log=True,
+                    compiler_check="%compiler% -v",
+                    sloppiness="time_macros,include_file_mtime,include_file_ctime,file_macro",
+                    hash_dir=False,
+                    log_file=True,
                 ),
             )
 
-            env = ccache.setup_ccache_environment(target, ccache_dir, infos_dir, base_env={"PATH": "/usr/bin"})
+            env = ccache.setup_ccache_environment(
+                target, ccache_dir, infos_dir, source_dir=source_dir, base_env={"PATH": "/usr/bin"}
+            )
             self.assertEqual(env["CCACHE_DIR"], str(ccache_dir.resolve()))
             self.assertEqual(env["CCACHE_MAXSIZE"], "20G")
+            self.assertEqual(env["CCACHE_COMPILERCHECK"], "%compiler% -v")
+            self.assertEqual(env["CCACHE_SLOPPINESS"], "time_macros,include_file_mtime,include_file_ctime,file_macro")
+            self.assertEqual(env["CCACHE_NOHASHDIR"], "1")
+            self.assertEqual(env["CCACHE_BASEDIR"], str(source_dir.resolve()))
+            self.assertEqual(env["CCACHE_LOGFILE"], str((infos_dir / "ccache.log").resolve()))
             self.assertEqual(env["CCACHE_STATS_LOG"], str((infos_dir / "ccache-stats.log").resolve()))
+
+            # Verify persistent ccache.conf content
+            conf_file = ccache_dir / "ccache.conf"
+            self.assertTrue(conf_file.exists())
+            conf_content = conf_file.read_text(encoding="utf-8")
+            self.assertIn("max_size = 20G", conf_content)
+            self.assertIn("compiler_check = %compiler% -v", conf_content)
+            self.assertIn("sloppiness = time_macros,include_file_mtime,include_file_ctime,file_macro", conf_content)
+            self.assertIn("hash_dir = false", conf_content)
+            self.assertIn(f"base_dir = {source_dir.resolve()}", conf_content)
+            self.assertIn(f"log_file = {(infos_dir / 'ccache.log').resolve()}", conf_content)
+            self.assertIn(f"stats_log = {(infos_dir / 'ccache-stats.log').resolve()}", conf_content)
 
     def test_get_ccache_binary_finds_staging_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

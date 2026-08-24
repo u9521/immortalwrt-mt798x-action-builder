@@ -116,7 +116,15 @@ def build_firmware(
                 ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
 
             ccache_bin = get_ccache_binary(source_dir)
-            print_ccache_banner(ccache_dir, target.ccache.max_size, ccache_bin=ccache_bin)
+            ccache_log_file = (infos_dir / "ccache.log").resolve() if target.ccache.log_file else None
+            print_ccache_banner(
+                ccache_dir,
+                target.ccache.max_size,
+                ccache_bin=ccache_bin,
+                compiler_check=target.ccache.compiler_check,
+                sloppiness=target.ccache.sloppiness,
+                log_file=ccache_log_file,
+            )
             env = setup_ccache_environment(target, ccache_dir, infos_dir, source_dir=source_dir, base_env=env)
         else:
             print(f"\n[CCACHE CHECK] Warning: ccache configuration in .config is {reason}", flush=True)

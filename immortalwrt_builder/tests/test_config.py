@@ -99,6 +99,39 @@ verbose = true
             self.assertTrue(target.ccache.enabled)
             self.assertTrue(target.build.verbose)
 
+    def test_parse_advanced_ccache_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dir_path = Path(temp_dir)
+            file_path = dir_path / "custom.toml"
+            file_path.write_text(
+                """
+name = "custom"
+[source]
+url = "https://example.com"
+branch = "main"
+
+[ccache]
+enabled = true
+max_size = "15G"
+compiler_check = "%compiler% -v"
+sloppiness = "time_macros,include_file_mtime"
+hash_dir = true
+base_dir = "/custom/base"
+log_file = true
+stats_log = true
+""",
+                encoding="utf-8",
+            )
+            target = parse_target_definition_file(file_path)
+            self.assertTrue(target.ccache.enabled)
+            self.assertEqual(target.ccache.max_size, "15G")
+            self.assertEqual(target.ccache.compiler_check, "%compiler% -v")
+            self.assertEqual(target.ccache.sloppiness, "time_macros,include_file_mtime")
+            self.assertTrue(target.ccache.hash_dir)
+            self.assertEqual(target.ccache.base_dir, Path("/custom/base"))
+            self.assertTrue(target.ccache.log_file)
+            self.assertTrue(target.ccache.stats_log)
+
     def test_rejects_circular_extends(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             dir_path = Path(temp_dir)

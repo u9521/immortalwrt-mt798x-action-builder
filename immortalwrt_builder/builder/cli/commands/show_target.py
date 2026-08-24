@@ -63,6 +63,11 @@ def handle_show_target(args: argparse.Namespace) -> int:
             "dir": str(target.ccache.dir) if target.ccache.dir else None,
             "max_size": target.ccache.max_size,
             "stats_log": target.ccache.stats_log,
+            "compiler_check": target.ccache.compiler_check,
+            "sloppiness": target.ccache.sloppiness,
+            "hash_dir": target.ccache.hash_dir,
+            "base_dir": str(target.ccache.base_dir) if target.ccache.base_dir else None,
+            "log_file": target.ccache.log_file,
         },
         "toolchain_cache": {
             "enabled": target.toolchain_cache.enabled,
