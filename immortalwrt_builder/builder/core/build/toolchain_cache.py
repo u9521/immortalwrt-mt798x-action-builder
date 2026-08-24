@@ -250,12 +250,23 @@ def save_toolchain_cache(
     if temp_archive.exists():
         temp_archive.unlink()
 
-    # Use tarfile module for standard cross-platform compression
-    with tarfile.open(temp_archive, "w:gz") as tar:
-        for rel_path in subdirs_to_pack:
-            full_path = source_dir / rel_path
-            if full_path.exists():
-                tar.add(full_path, arcname=rel_path)
+    saved = False
+    if shutil.which("tar"):
+        res = run_command(
+            ["tar", "-czf", str(temp_archive), "-C", str(source_dir), *subdirs_to_pack],
+            check=False,
+            capture_output=True,
+            echo=False,
+        )
+        if res.returncode == 0:
+            saved = True
+
+    if not saved:
+        with tarfile.open(temp_archive, "w:gz") as tar:
+            for rel_path in subdirs_to_pack:
+                full_path = source_dir / rel_path
+                if full_path.exists():
+                    tar.add(full_path, arcname=rel_path)
 
     # Atomic move
     if archive_path.exists():
@@ -285,14 +296,36 @@ def restore_toolchain_cache(
 
     ensure_directory(source_dir)
 
-    try:
-        with tarfile.open(archive_path, "r:*") as tar:
-            if hasattr(tarfile, "tar_filter"):
-                tar.extractall(path=source_dir, filter="tar")
-            else:
-                tar.extractall(path=source_dir)
-    except Exception as exc:
-        print(f"[TOOLCHAIN CACHE WARNING] Failed to extract archive {archive_path}: {exc}", flush=True)
+    extracted = False
+    error_msg = ""
+
+    # 1. Prefer system tar for speed and full preservation of symlinks/hardlinks
+    if shutil.which("tar"):
+        res = run_command(
+            ["tar", "-xf", str(archive_path), "-C", str(source_dir)],
+            check=False,
+            capture_output=True,
+            echo=False,
+        )
+        if res.returncode == 0:
+            extracted = True
+        else:
+            error_msg = res.stderr.strip() or f"tar exited with code {res.returncode}"
+
+    # 2. Fallback to Python tarfile with fully_trusted filter
+    if not extracted:
+        try:
+            with tarfile.open(archive_path, "r:*") as tar:
+                if hasattr(tarfile, "fully_trusted_filter"):
+                    tar.extractall(path=source_dir, filter="fully_trusted")
+                else:
+                    tar.extractall(path=source_dir)
+            extracted = True
+        except Exception as exc:
+            error_msg = str(exc)
+
+    if not extracted:
+        print(f"[TOOLCHAIN CACHE WARNING] Failed to extract archive {archive_path}: {error_msg}", flush=True)
         # Clean corrupted staging_dir
         corrupted_staging = source_dir / "staging_dir"
         if corrupted_staging.exists():

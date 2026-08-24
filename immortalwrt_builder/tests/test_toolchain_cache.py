@@ -153,6 +153,7 @@ class ToolchainCacheTests(unittest.TestCase):
             tc_stamp.mkdir(parents=True)
 
             (host_bin / "cmake").write_text("dummy-cmake", encoding="utf-8")
+            (host_bin / "awk").symlink_to("/usr/bin/gawk")
             (host_stamp / ".tools_compile_xyz").write_text("", encoding="utf-8")
             (tc_bin / "aarch64-gcc").write_text("dummy-gcc", encoding="utf-8")
             (tc_stamp / ".toolchain_compile").write_text("", encoding="utf-8")
@@ -168,11 +169,13 @@ class ToolchainCacheTests(unittest.TestCase):
             self.assertTrue(success)
 
             new_cmake = new_source_dir / "staging_dir" / "host" / "bin" / "cmake"
+            new_awk = new_source_dir / "staging_dir" / "host" / "bin" / "awk"
             new_gcc = new_source_dir / "staging_dir" / "toolchain-aarch64_musl" / "bin" / "aarch64-gcc"
             new_stamp = new_source_dir / "staging_dir" / "host" / "stamp" / ".tools_compile_xyz"
 
             self.assertTrue(new_cmake.exists())
             self.assertEqual(new_cmake.read_text(encoding="utf-8"), "dummy-cmake")
+            self.assertTrue(new_awk.is_symlink())
             self.assertTrue(new_gcc.exists())
             self.assertTrue(new_stamp.exists())
 
