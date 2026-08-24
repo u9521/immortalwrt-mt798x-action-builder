@@ -84,10 +84,12 @@ def run_command(
     env: dict[str, str] | None = None,
     check: bool = True,
     capture_output: bool = False,
+    echo: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     printable = " ".join(command)
     cwd_display = str(cwd.resolve()) if cwd else os.getcwd()
-    print(f"+ {printable}", flush=True)
+    if echo:
+        print(f"+ {printable}", flush=True)
     if capture_output:
         try:
             return subprocess.run(

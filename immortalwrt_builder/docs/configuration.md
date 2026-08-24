@@ -43,7 +43,6 @@ ignore_errors = false                                   # Ignore compilation err
 enabled = true                                          # Enable compiler cache (default: true)
 dir = "/path/to/custom/ccache"                          # Custom CCACHE_DIR (default: cache/<target>/ccache)
 max_size = "10G"                                        # CCACHE_MAXSIZE storage cap (default: 10G)
-export_stats = true                                     # Export ccache-stats.json/txt to infos/ (default: true)
 stats_log = false                                       # Export detailed per-file log to infos/ (default: false)
 
 [output]

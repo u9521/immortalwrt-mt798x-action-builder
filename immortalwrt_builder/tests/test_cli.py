@@ -87,6 +87,36 @@ class CliTests(unittest.TestCase):
         self.assertEqual(ret, 0)
         mock_build.assert_called_once_with(target, work_root / "source-code/sample", jobs=4, verbose=True)
 
+    def test_toolchain_key_command(self) -> None:
+        target = _dummy_target("sample")
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", stdout):
+            with mock.patch("immortalwrt_builder.builder.cli.commands.toolchain.TargetConfigProvider") as mock_provider:
+                mock_provider.return_value.load.return_value = target
+                with mock.patch(
+                    "immortalwrt_builder.builder.cli.commands.toolchain.compute_toolchain_key",
+                    return_value="toolchain-sample-key-123",
+                ):
+                    ret = main(["toolchain-key", "--target", "sample"])
+
+        self.assertEqual(ret, 0)
+        self.assertEqual(stdout.getvalue().strip(), "toolchain-sample-key-123")
+
+    def test_tools_ccache_dir_command(self) -> None:
+        target = _dummy_target("sample")
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", stdout):
+            with mock.patch("immortalwrt_builder.builder.cli.commands.tools.TargetConfigProvider") as mock_provider:
+                mock_provider.return_value.load.return_value = target
+                with mock.patch(
+                    "immortalwrt_builder.builder.cli.commands.tools.resolve_effective_ccache_dir",
+                    return_value=Path("/tmp/ccache/dir"),
+                ):
+                    ret = main(["tools", "ccache-dir", "--target", "sample"])
+
+        self.assertEqual(ret, 0)
+        self.assertEqual(stdout.getvalue().strip(), "/tmp/ccache/dir")
+
 
 if __name__ == "__main__":
     unittest.main()

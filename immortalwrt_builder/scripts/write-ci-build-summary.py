@@ -40,6 +40,14 @@ def main() -> int:
         summary_content.append("### Firmware Artifacts\n")
         summary_content.append(digest_path.read_text(encoding="utf-8"))
 
+    # Append ccache statistics if exists
+    ccache_stats_path = Path(f"infos/{args.target}/ccache-stats.txt")
+    if ccache_stats_path.exists():
+        summary_content.append("### ccache Statistics\n")
+        summary_content.append("```text")
+        summary_content.append(ccache_stats_path.read_text(encoding="utf-8").strip())
+        summary_content.append("```\n")
+
     summary_path = Path(summary_file_path)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     with summary_path.open("a", encoding="utf-8") as f:

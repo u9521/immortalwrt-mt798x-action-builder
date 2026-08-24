@@ -17,6 +17,7 @@ from .commands import (
     setup_feeds,  # noqa: F401
     show_target,  # noqa: F401
     sync_source,  # noqa: F401
+    toolchain,  # noqa: F401
     tools,  # noqa: F401
     usage,  # noqa: F401
 )

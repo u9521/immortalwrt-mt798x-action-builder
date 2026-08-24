@@ -16,10 +16,23 @@ from .schema import (
     OutputConfig,
     PatchConfig,
     TargetConfig,
+    ToolchainCacheConfig,
 )
 from .validator import validate_target
 
-_TARGET_ROOT_KEYS = {"name", "base", "extends", "source", "feeds", "patch", "diy", "build", "ccache", "output"}
+_TARGET_ROOT_KEYS = {
+    "name",
+    "base",
+    "extends",
+    "source",
+    "feeds",
+    "patch",
+    "diy",
+    "build",
+    "ccache",
+    "toolchain_cache",
+    "output",
+}
 _SOURCE_KEYS = {"url", "branch", "tag", "commit", "depth", "submodules"}
 _FEEDS_KEYS = {"update", "install", "custom_feeds", "conf_file"}
 _PATCH_KEYS = {
@@ -42,8 +55,13 @@ _CCACHE_KEYS = {
     "enabled",
     "dir",
     "max_size",
-    "export_stats",
     "stats_log",
+}
+_TOOLCHAIN_CACHE_KEYS = {
+    "enabled",
+    "dir",
+    "auto_restore",
+    "auto_save",
 }
 _OUTPUT_KEYS = {"dist_dir", "target_dir", "packages_dir", "calculate_digest", "firmware_patterns"}
 
@@ -68,6 +86,7 @@ def parse_target_definition_file(
     patch = _parse_patch_config(payload.get("patch") or payload.get("diy"), path, patchs_root=patchs_root)
     build = _parse_build_config(payload.get("build"), path, defconfigs_root=defconfigs_root)
     ccache = _parse_ccache_config(payload.get("ccache"), path)
+    toolchain_cache = _parse_toolchain_cache_config(payload.get("toolchain_cache"), path)
     output = _parse_output_config(payload.get("output"), path)
 
     target = TargetConfig(
@@ -78,6 +97,7 @@ def parse_target_definition_file(
         patch=patch,
         build=build,
         ccache=ccache,
+        toolchain_cache=toolchain_cache,
         output=output,
         config_path=path,
     )
@@ -167,17 +187,38 @@ def _parse_ccache_config(value: object, config_path: Path) -> CcacheConfig:
     _reject_unknown_keys(value, _CCACHE_KEYS, "ccache", config_path)
 
     dir_str = _optional_string(value.get("dir"), field="ccache.dir", config_path=config_path)
-    dir_path = (config_path.parent / dir_str).resolve() if dir_str else None
+    dir_path = Path(dir_str) if dir_str else None
 
     return CcacheConfig(
         enabled=_optional_bool(value.get("enabled"), default=True, field="ccache.enabled", config_path=config_path),
         dir=dir_path,
         max_size=_optional_string(value.get("max_size"), field="ccache.max_size", config_path=config_path) or "10G",
-        export_stats=_optional_bool(
-            value.get("export_stats"), default=True, field="ccache.export_stats", config_path=config_path
-        ),
         stats_log=_optional_bool(
             value.get("stats_log"), default=False, field="ccache.stats_log", config_path=config_path
+        ),
+    )
+
+
+def _parse_toolchain_cache_config(value: object, config_path: Path) -> ToolchainCacheConfig:
+    if value is None:
+        return ToolchainCacheConfig()
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid 'toolchain_cache' table in {config_path}: expected mapping")
+    _reject_unknown_keys(value, _TOOLCHAIN_CACHE_KEYS, "toolchain_cache", config_path)
+
+    dir_str = _optional_string(value.get("dir"), field="toolchain_cache.dir", config_path=config_path)
+    dir_path = Path(dir_str) if dir_str else None
+
+    return ToolchainCacheConfig(
+        enabled=_optional_bool(
+            value.get("enabled"), default=True, field="toolchain_cache.enabled", config_path=config_path
+        ),
+        dir=dir_path,
+        auto_restore=_optional_bool(
+            value.get("auto_restore"), default=True, field="toolchain_cache.auto_restore", config_path=config_path
+        ),
+        auto_save=_optional_bool(
+            value.get("auto_save"), default=True, field="toolchain_cache.auto_save", config_path=config_path
         ),
     )
 

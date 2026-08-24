@@ -44,6 +44,12 @@ def build_parser(subparsers: Any) -> None:
     add_work_root_argument(ccache_stats)
     ccache_stats.set_defaults(handler=handle_ccache_stats)
 
+    # Subcommand: ccache-dir
+    ccache_dir = tool_subparsers.add_parser("ccache-dir", help="Print resolved ccache directory for target")
+    add_target_argument(ccache_dir)
+    add_work_root_argument(ccache_dir)
+    ccache_dir.set_defaults(handler=handle_ccache_dir)
+
     # Subcommand: ccache-clean
     ccache_clean = tool_subparsers.add_parser("ccache-clean", help="Clear ccache cache directory for target")
     add_target_argument(ccache_clean)
@@ -119,7 +125,17 @@ def handle_ccache_stats(args: argparse.Namespace) -> int:
     target = TargetConfigProvider(project_root).load(args.target)
     source_dir = layout.target_source_root(work_root, target.name)
     ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
-    show_ccache_stats(ccache_dir)
+    show_ccache_stats(ccache_dir, source_dir=source_dir)
+    return 0
+
+
+def handle_ccache_dir(args: argparse.Namespace) -> int:
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
+    source_dir = layout.target_source_root(work_root, target.name)
+    ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
+    print(ccache_dir)
     return 0
 
 
@@ -129,7 +145,7 @@ def handle_ccache_clean(args: argparse.Namespace) -> int:
     target = TargetConfigProvider(project_root).load(args.target)
     source_dir = layout.target_source_root(work_root, target.name)
     ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
-    clear_ccache(ccache_dir)
+    clear_ccache(ccache_dir, source_dir=source_dir)
     return 0
 
 

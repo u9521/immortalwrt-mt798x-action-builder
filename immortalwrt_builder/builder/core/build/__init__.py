@@ -21,6 +21,15 @@ from .ccache import (
 )
 from .engine import build_firmware, clean_build, download_packages, prepare_config
 from .output import collect_outputs, generate_digest_table, write_digest_summary
+from .toolchain_cache import (
+    clear_toolchain_cache,
+    compute_toolchain_key,
+    is_toolchain_cached,
+    resolve_toolchain_archive_path,
+    restore_toolchain_cache,
+    save_toolchain_cache,
+    touch_toolchain_stamps,
+)
 
 
 def execute_build_pipeline(
@@ -61,17 +70,24 @@ __all__ = [
     "build_firmware",
     "clean_build",
     "clear_ccache",
+    "clear_toolchain_cache",
     "collect_outputs",
+    "compute_toolchain_key",
     "download_packages",
     "execute_build_pipeline",
     "export_ccache_stats",
     "generate_digest_table",
     "is_ccache_available",
     "is_openwrt_ccache_enabled",
+    "is_toolchain_cached",
     "prepare_config",
     "print_ccache_banner",
     "resolve_effective_ccache_dir",
+    "resolve_toolchain_archive_path",
+    "restore_toolchain_cache",
+    "save_toolchain_cache",
     "setup_ccache_environment",
     "show_ccache_stats",
+    "touch_toolchain_stamps",
     "write_digest_summary",
 ]

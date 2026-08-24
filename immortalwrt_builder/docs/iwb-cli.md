@@ -92,6 +92,9 @@ uv run iwb tools add-git-safe /path/to/workspace -r
 # View ccache statistics
 uv run iwb tools ccache-stats --target official-mt7981-ax3000m
 
+# Print ccache directory path (used for CI caching)
+uv run iwb tools ccache-dir --target official-mt7981-ax3000m
+
 # Clear ccache
 uv run iwb tools ccache-clean --target official-mt7981-ax3000m
 
@@ -101,7 +104,27 @@ uv run iwb tools clean --target official-mt7981-ax3000m --dirclean
 uv run iwb tools clean --target official-mt7981-ax3000m --all
 ```
 
-### 11. `usage`
+### 11. `toolchain-*` Cache Management
+Subsystem for archiving, restoring, and managing compiled host tools and cross-compiler toolchains:
+
+```bash
+# Print calculated toolchain cache fingerprint key
+uv run iwb toolchain-key --target official-mt7981-ax3000m
+
+# Archive and save toolchain
+uv run iwb toolchain-save --target official-mt7981-ax3000m
+
+# Restore toolchain and touch timestamps
+uv run iwb toolchain-restore --target official-mt7981-ax3000m
+
+# Touch stamp files to prevent OpenWrt Makefile rebuilds
+uv run iwb toolchain-touch --target official-mt7981-ax3000m
+
+# Remove saved toolchain archive
+uv run iwb toolchain-clean --target official-mt7981-ax3000m
+```
+
+### 12. `usage`
 Print workspace disk usage for `source-code/`, `cache/`, and `out/`.
 
 ```bash

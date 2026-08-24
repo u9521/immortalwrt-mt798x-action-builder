@@ -8,6 +8,9 @@ post_feeds_patches = ["patch2.py", "patch3.py"]
 [build]
 defconfig = "ax3000m.config"
 
+[ccache]
+enabled = true
+
 [output]
 dist_dir = "uluawrt-mt7981-ax3000m"
 target_dir = "bin/targets/mediatek/mt7981"

@@ -7,8 +7,10 @@ branch = "openwrt-25.12"
 [build]
 defconfig = "rax3000m-base.config"
 
+[ccache]
+enabled = true
+
 [output]
 dist_dir = "official-mt7981-ax3000m"
 target_dir = "bin/targets/mediatek/filogic"
 packages_dir = "bin/packages"
-

@@ -47,8 +47,15 @@ class CcacheConfig:
     enabled: bool = True
     dir: Path | None = None
     max_size: str = "10G"
-    export_stats: bool = True
     stats_log: bool = False
+
+
+@dataclass(slots=True)
+class ToolchainCacheConfig:
+    enabled: bool = True
+    dir: Path | None = None
+    auto_restore: bool = True
+    auto_save: bool = True
 
 
 @dataclass(slots=True)
@@ -81,5 +88,6 @@ class TargetConfig:
     patch: PatchConfig = field(default_factory=PatchConfig)
     build: BuildConfig = field(default_factory=BuildConfig)
     ccache: CcacheConfig = field(default_factory=CcacheConfig)
+    toolchain_cache: ToolchainCacheConfig = field(default_factory=ToolchainCacheConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     config_path: Path = Path()

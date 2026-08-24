@@ -34,7 +34,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ inputs.target || 'official-mt7981-ax3000m' }}
+    name: Build ${{ inputs.target }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -73,11 +73,54 @@ jobs:
         id: check_update
         if: ${{ !(inputs.skipUpdateCheck || false) }}
         run: |
-          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          target_name="${{ inputs.target }}"
           uv run iwb check-update --target "$target_name" || {
             echo "Repositories are up to date. Skipping build."
             echo "skip_build=true" >> "$GITHUB_OUTPUT"
           }
+
+      - name: Prepare build environment and compute cache keys
+        id: cache_info
+        if: ${{ steps.check_update.outputs.skip_build != 'true' }}
+        run: |
+          target_name="${{ inputs.target }}"
+          
+          # Initialize source, feeds, and config for fingerprinting
+          uv run iwb sync-source --target "$target_name"
+          uv run iwb setup-feeds --target "$target_name"
+          uv run iwb configure --target "$target_name"
+
+          tc_key=$(uv run iwb toolchain-key --target "$target_name")
+          echo "toolchain_key=$tc_key" >> "$GITHUB_OUTPUT"
+
+          ccache_dir=$(uv run iwb tools ccache-dir --target "$target_name")
+          echo "ccache_dir=$ccache_dir" >> "$GITHUB_OUTPUT"
+          echo "Calculated toolchain cache key: $tc_key"
+          echo "Resolved ccache directory: $ccache_dir"
+
+      - name: Restore Toolchain Cache
+        uses: actions/cache/restore@v4
+        id: toolchain_cache
+        if: ${{ steps.check_update.outputs.skip_build != 'true' }}
+        with:
+          path: cache/${{ inputs.target }}/toolchain
+          key: ${{ steps.cache_info.outputs.toolchain_key }}
+
+      - name: Restore ccache Cache
+        uses: actions/cache/restore@v4
+        id: ccache_cache
+        if: ${{ steps.check_update.outputs.skip_build != 'true' }}
+        with:
+          path: ${{ steps.cache_info.outputs.ccache_dir }}
+          key: ccache-${{ inputs.target }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ inputs.target }}-
+
+      - name: Apply Toolchain Cache
+        if: ${{ steps.check_update.outputs.skip_build != 'true' && steps.toolchain_cache.outputs.cache-hit == 'true' }}
+        run: |
+          target_name="${{ inputs.target }}"
+          uv run iwb toolchain-restore --target "$target_name"
 
       - name: Run ImmortalWrt build pipeline
         id: build_step
@@ -85,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           start_ts=$(date +%s)
-          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          target_name="${{ inputs.target }}"
           verbose_flag=""
           if [ "${{ inputs.verboseBuildlog || false }}" = "true" ]; then
             verbose_flag="--verbose"
@@ -96,11 +139,25 @@ jobs:
           end_ts=$(date +%s)
           echo "duration=$((end_ts - start_ts))" >> "$GITHUB_OUTPUT"
 
+      - name: Save Toolchain Cache
+        if: ${{ steps.check_update.outputs.skip_build != 'true' && steps.toolchain_cache.outputs.cache-hit != 'true' && steps.build_step.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: cache/${{ inputs.target }}/toolchain
+          key: ${{ steps.cache_info.outputs.toolchain_key }}
+
+      - name: Save ccache Cache
+        if: ${{ steps.check_update.outputs.skip_build != 'true' && steps.build_step.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.cache_info.outputs.ccache_dir }}
+          key: ccache-${{ inputs.target }}-${{ github.run_id }}
+
       - name: Upload firmware artifacts
         if: ${{ steps.check_update.outputs.skip_build != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-build-${{ inputs.target || 'official-mt7981-ax3000m' }}-${{ github.run_id }}
+          name: immortalwrt-build-${{ inputs.target }}-${{ github.run_id }}
           path: |
             out/**
             filedigest.md
@@ -112,7 +169,7 @@ jobs:
         if: ${{ (inputs.releaseAfterBuild || false) && steps.check_update.outputs.skip_build != 'true' }}
         run: |
           tag_time=$(date +%Y%m%d%H%M%S)
-          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          target_name="${{ inputs.target }}"
           echo "release_tag=${target_name}-${tag_time}" >> "$GITHUB_OUTPUT"
           echo "release_name=ImmortalWrt-${target_name}-$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
@@ -128,7 +185,7 @@ jobs:
       - name: Write CI build summary
         if: always()
         run: |
-          target_name="${{ inputs.target || 'official-mt7981-ax3000m' }}"
+          target_name="${{ inputs.target }}"
           outcome="${{ steps.build_step.outcome || 'skipped' }}"
           duration="${{ steps.build_step.outputs.duration || '0' }}"
           uv run python immortalwrt_builder/scripts/write-ci-build-summary.py \

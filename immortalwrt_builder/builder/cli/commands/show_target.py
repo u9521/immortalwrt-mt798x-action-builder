@@ -62,8 +62,13 @@ def handle_show_target(args: argparse.Namespace) -> int:
             "enabled": target.ccache.enabled,
             "dir": str(target.ccache.dir) if target.ccache.dir else None,
             "max_size": target.ccache.max_size,
-            "export_stats": target.ccache.export_stats,
             "stats_log": target.ccache.stats_log,
+        },
+        "toolchain_cache": {
+            "enabled": target.toolchain_cache.enabled,
+            "dir": str(target.toolchain_cache.dir) if target.toolchain_cache.dir else None,
+            "auto_restore": target.toolchain_cache.auto_restore,
+            "auto_save": target.toolchain_cache.auto_save,
         },
         "output": {
             "dist_dir": target.output.dist_dir,
@@ -84,6 +89,7 @@ def handle_show_target(args: argparse.Namespace) -> int:
         print(f"  Defconfig: {target.build.defconfig_path or '(none)'}")
         print(f"  Jobs: {target.build.jobs}, Verbose: {target.build.verbose}")
         print(f"  ccache: enabled={target.ccache.enabled}, max_size={target.ccache.max_size}")
+        print(f"  Toolchain Cache: enabled={target.toolchain_cache.enabled}")
         if target.patch.pre_feeds_patches:
             print(f"  Pre-feeds Patches: {', '.join(p.name for p in target.patch.pre_feeds_patches)}")
         if target.patch.post_feeds_patches:

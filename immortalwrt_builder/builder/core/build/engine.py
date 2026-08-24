@@ -11,17 +11,26 @@ from ... import layout
 from ...utils import run_command
 from ..config.schema import TargetConfig
 from .ccache import (
+    check_ccache_config_match,
+    configure_ccache_in_dot_config,
     export_ccache_stats,
-    is_openwrt_ccache_enabled,
+    get_ccache_binary,
     print_ccache_banner,
     resolve_effective_ccache_dir,
     setup_ccache_environment,
-    show_ccache_stats,
+)
+from .toolchain_cache import (
+    is_toolchain_cached,
+    resolve_toolchain_archive_path,
+    restore_toolchain_cache,
+    save_toolchain_cache,
+    touch_toolchain_stamps,
 )
 
 
 def prepare_config(target: TargetConfig, source_dir: Path) -> Path:
     source_dir = source_dir.resolve()
+    work_root = source_dir.parent.parent if source_dir.parent.name == layout.SOURCE_CODE_DIR_NAME else Path.cwd()
     dot_config = source_dir / ".config"
 
     if target.build.defconfig_path is not None and target.build.defconfig_path.exists():
@@ -29,6 +38,12 @@ def prepare_config(target: TargetConfig, source_dir: Path) -> Path:
         shutil.copyfile(target.build.defconfig_path, dot_config)
     elif not dot_config.exists():
         dot_config.touch()
+
+    if target.ccache.enabled:
+        ccache_dir: Path | None = None
+        if target.ccache.dir is not None:
+            ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
+        configure_ccache_in_dot_config(dot_config, ccache_dir)
 
     print("Generating configuration (make defconfig)...", flush=True)
     run_command(["make", "defconfig"], cwd=source_dir)
@@ -82,17 +97,37 @@ def build_firmware(
     is_verbose = verbose if verbose is not None else target.build.verbose
 
     dot_config = source_dir / ".config"
-    ccache_in_config, _ = is_openwrt_ccache_enabled(dot_config)
-    ccache_active = ccache_in_config or target.ccache.enabled
-
     env = os.environ.copy()
     ccache_dir: Path | None = None
     infos_dir = layout.target_infos_root(work_root, target.name)
+    ccache_active = False
 
-    if ccache_active:
-        ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
-        print_ccache_banner(ccache_dir, target.ccache.max_size)
-        env = setup_ccache_environment(target, ccache_dir, infos_dir, base_env=env)
+    if target.ccache.enabled:
+        expected_dir: Path | None = None
+        if target.ccache.dir is not None:
+            expected_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
+
+        matched, reason = check_ccache_config_match(dot_config, expected_dir)
+        if matched:
+            ccache_active = True
+            if expected_dir is not None:
+                ccache_dir = expected_dir
+            else:
+                ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
+
+            ccache_bin = get_ccache_binary(source_dir)
+            print_ccache_banner(ccache_dir, target.ccache.max_size, ccache_bin=ccache_bin)
+            env = setup_ccache_environment(target, ccache_dir, infos_dir, source_dir=source_dir, base_env=env)
+        else:
+            print(f"\n[CCACHE CHECK] Warning: ccache configuration in .config is {reason}", flush=True)
+
+    # Toolchain Cache: check and restore
+    if target.toolchain_cache.enabled:
+        archive_path = resolve_toolchain_archive_path(target, work_root)
+        if target.toolchain_cache.auto_restore and not is_toolchain_cached(source_dir) and archive_path.exists():
+            restore_toolchain_cache(target, source_dir, archive_path)
+        if is_toolchain_cached(source_dir):
+            touch_toolchain_stamps(source_dir)
 
     cmd = ["make", f"-j{resolved_jobs}"]
     if is_verbose:
@@ -101,6 +136,11 @@ def build_firmware(
     print(f"=== Starting firmware compilation (make -j{resolved_jobs}) ===", flush=True)
     try:
         run_command(cmd, cwd=source_dir, env=env, check=True)
+        # Toolchain Cache: auto save if configured
+        if target.toolchain_cache.enabled and target.toolchain_cache.auto_save and is_toolchain_cached(source_dir):
+            archive_path = resolve_toolchain_archive_path(target, work_root)
+            if not archive_path.exists():
+                save_toolchain_cache(target, source_dir, archive_path)
     except Exception as exc:
         print(f"\n[BUILD ERROR] Compilation failed: {exc}", flush=True)
         if not is_verbose:
@@ -112,10 +152,7 @@ def build_firmware(
             raise
     finally:
         if ccache_active and ccache_dir is not None:
-            if target.ccache.export_stats:
-                export_ccache_stats(ccache_dir, infos_dir)
-            else:
-                show_ccache_stats(ccache_dir)
+            export_ccache_stats(ccache_dir, infos_dir, source_dir=source_dir)
 
 
 def clean_build(source_dir: Path, *, dirclean: bool = False) -> None:

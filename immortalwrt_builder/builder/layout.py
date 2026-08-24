@@ -106,6 +106,14 @@ def target_ccache_dir(work_root: Path, target_name: str) -> Path:
     return target_cache_root(work_root, target_name) / "ccache"
 
 
+def target_toolchain_cache_dir(work_root: Path, target_name: str) -> Path:
+    return target_cache_root(work_root, target_name) / "toolchain"
+
+
+def target_toolchain_archive_path(work_root: Path, target_name: str) -> Path:
+    return target_toolchain_cache_dir(work_root, target_name) / f"toolchain-{target_name}.tar.gz"
+
+
 def target_dl_dir(work_root: Path, target_name: str) -> Path:
     return target_cache_root(work_root, target_name) / "dl"
 
