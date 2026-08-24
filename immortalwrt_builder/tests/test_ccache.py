@@ -45,31 +45,6 @@ class CcacheTests(unittest.TestCase):
             self.assertIn("CONFIG_CCACHE=y", content)
             self.assertIn(f'CONFIG_CCACHE_DIR="{ccache_dir.resolve()}"', content)
 
-    def test_check_ccache_config_match(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            dot_config = Path(temp_dir) / ".config"
-            ccache_dir = Path(temp_dir) / "my_ccache"
-
-            # 1. Matching explicit directory
-            dot_config.write_text(
-                f'CONFIG_CCACHE=y\nCONFIG_CCACHE_DIR="{ccache_dir.resolve()}"\n',
-                encoding="utf-8",
-            )
-            matched, reason = ccache.check_ccache_config_match(dot_config, ccache_dir)
-            self.assertTrue(matched)
-            self.assertEqual(reason, "matched")
-
-            # 2. Matching when expected_ccache_dir is None (no dir specified in TOML)
-            matched_none, reason_none = ccache.check_ccache_config_match(dot_config, None)
-            self.assertTrue(matched_none)
-            self.assertEqual(reason_none, "matched")
-
-            # 3. Mismatched explicit directory
-            other_dir = Path(temp_dir) / "other_ccache"
-            matched2, reason2 = ccache.check_ccache_config_match(dot_config, other_dir)
-            self.assertFalse(matched2)
-            self.assertIn("mismatched", reason2)
-
     def test_resolve_effective_ccache_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             work_root = Path(temp_dir)
@@ -78,36 +53,36 @@ class CcacheTests(unittest.TestCase):
 
             target = TargetConfig(name="test", source=GitSourceConfig(url="https://example.com"))
 
-            # 1. Resolves to target cache directory when target.ccache.dir is None
-            stdout = io.StringIO()
-            with mock.patch("sys.stdout", stdout):
-                resolved = ccache.resolve_effective_ccache_dir(target, work_root, warn_if_unset=True)
-            self.assertEqual(resolved, (work_root / "cache/test/ccache").resolve())
-            self.assertIn("[CCACHE WARNING]", stdout.getvalue())
-
-            # 2. Resolves from .config when source_dir has dot_config
+            # 1. Resolves from .config arch_signature when source_dir has dot_config
             dot_config = source_dir / ".config"
-            dot_config.write_text('CONFIG_CCACHE=y\nCONFIG_CCACHE_DIR="/custom/from/dot_config"\n', encoding="utf-8")
+            dot_config.write_text(
+                'CONFIG_ARCH="aarch64"\n'
+                'CONFIG_TARGET_BOARD="mediatek"\n'
+                'CONFIG_TARGET_SUBTARGET="filogic"\n'
+                'CONFIG_GCC_VERSION="14.3.0"\n'
+                'CONFIG_LIBC="musl"\n',
+                encoding="utf-8",
+            )
             resolved_from_config = ccache.resolve_effective_ccache_dir(target, work_root, source_dir)
-            self.assertEqual(resolved_from_config, Path("/custom/from/dot_config").resolve())
+            self.assertEqual(
+                resolved_from_config,
+                (work_root / "cache/ccache/mediatek-filogic-aarch64-musl-14.3.0").resolve(),
+            )
 
-            # 3. Overridden when target.ccache.dir is explicitly specified (no warning)
+            # 2. Overridden when target.ccache.dir is explicitly specified
             target.ccache.dir = Path("/custom/cache/dir")
-            stdout2 = io.StringIO()
-            with mock.patch("sys.stdout", stdout2):
-                resolved_custom = ccache.resolve_effective_ccache_dir(target, work_root, source_dir)
+            resolved_custom = ccache.resolve_effective_ccache_dir(target, work_root, source_dir)
             self.assertEqual(resolved_custom, Path("/custom/cache/dir").resolve())
-            self.assertNotIn("[CCACHE WARNING]", stdout2.getvalue())
 
     def test_print_ccache_banner_displays_prominent_message(self) -> None:
         stdout = io.StringIO()
         with mock.patch("sys.stdout", stdout):
-            ccache.print_ccache_banner(Path("/tmp/ccache"), max_size="25G")
+            ccache.print_ccache_banner(Path("/tmp/ccache"), max_size="3.5G")
 
         output = stdout.getvalue()
         self.assertIn("[CCACHE ENABLED]", output)
         self.assertIn("/tmp/ccache", output)
-        self.assertIn("25G", output)
+        self.assertIn("3.5G", output)
 
     def test_setup_ccache_environment_sets_env_and_stats_log(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -121,7 +96,7 @@ class CcacheTests(unittest.TestCase):
                 source=GitSourceConfig(url="https://example.com"),
                 ccache=CcacheConfig(
                     enabled=True,
-                    max_size="20G",
+                    max_size="3.5G",
                     stats_log=True,
                     compiler_check="%compiler% -v",
                     sloppiness="time_macros,include_file_mtime,include_file_ctime,file_macro",
@@ -134,25 +109,13 @@ class CcacheTests(unittest.TestCase):
                 target, ccache_dir, infos_dir, source_dir=source_dir, base_env={"PATH": "/usr/bin"}
             )
             self.assertEqual(env["CCACHE_DIR"], str(ccache_dir.resolve()))
-            self.assertEqual(env["CCACHE_MAXSIZE"], "20G")
+            self.assertEqual(env["CCACHE_MAXSIZE"], "3.5G")
             self.assertEqual(env["CCACHE_COMPILERCHECK"], "%compiler% -v")
             self.assertEqual(env["CCACHE_SLOPPINESS"], "time_macros,include_file_mtime,include_file_ctime,file_macro")
             self.assertEqual(env["CCACHE_NOHASHDIR"], "1")
             self.assertEqual(env["CCACHE_BASEDIR"], str(source_dir.resolve()))
             self.assertEqual(env["CCACHE_LOGFILE"], str((infos_dir / "ccache.log").resolve()))
             self.assertEqual(env["CCACHE_STATS_LOG"], str((infos_dir / "ccache-stats.log").resolve()))
-
-            # Verify persistent ccache.conf content
-            conf_file = ccache_dir / "ccache.conf"
-            self.assertTrue(conf_file.exists())
-            conf_content = conf_file.read_text(encoding="utf-8")
-            self.assertIn("max_size = 20G", conf_content)
-            self.assertIn("compiler_check = %compiler% -v", conf_content)
-            self.assertIn("sloppiness = time_macros,include_file_mtime,include_file_ctime,file_macro", conf_content)
-            self.assertIn("hash_dir = false", conf_content)
-            self.assertIn(f"base_dir = {source_dir.resolve()}", conf_content)
-            self.assertIn(f"log_file = {(infos_dir / 'ccache.log').resolve()}", conf_content)
-            self.assertIn(f"stats_log = {(infos_dir / 'ccache-stats.log').resolve()}", conf_content)
 
     def test_get_ccache_binary_finds_staging_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -189,9 +152,6 @@ class CcacheTests(unittest.TestCase):
             self.assertIn("ccache binary:   /usr/bin/ccache", content)
             self.assertIn("cache size: 1.5 GB", content)
 
-            json_file = infos_dir / "ccache-stats.json"
-            self.assertFalse(json_file.exists())
-
     def test_show_ccache_stats_returns_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             ccache_dir = Path(temp_dir) / "ccache"
@@ -201,22 +161,24 @@ class CcacheTests(unittest.TestCase):
                 return_value="/usr/bin/ccache",
             ):
                 with mock.patch("immortalwrt_builder.builder.core.build.ccache.run_command") as mock_run:
-                    mock_run.return_value = mock.MagicMock(returncode=0, stdout="cache hit: 85%\n")
-                    output = ccache.show_ccache_stats(ccache_dir)
-                    self.assertIn("ccache binary:   /usr/bin/ccache", output)
-                    self.assertIn("cache hit: 85%", output)
+                    mock_run.return_value = mock.MagicMock(
+                        returncode=0,
+                        stdout="cache hit: 85%\n",
+                    )
+                    out = ccache.show_ccache_stats(ccache_dir)
+                    self.assertIn("cache hit: 85%", out)
 
-    def test_clear_ccache_invokes_ccache_C(self) -> None:
+    def test_clear_ccache_runs_command(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            ccache_dir = Path(temp_dir)
+            ccache_dir = Path(temp_dir) / "ccache"
+            ccache_dir.mkdir()
             with mock.patch(
                 "immortalwrt_builder.builder.core.build.ccache.get_ccache_binary",
                 return_value="/usr/bin/ccache",
             ):
                 with mock.patch("immortalwrt_builder.builder.core.build.ccache.run_command") as mock_run:
                     ccache.clear_ccache(ccache_dir)
-                    mock_run.assert_called_once()
-                    self.assertEqual(mock_run.call_args.args[0], ["/usr/bin/ccache", "-C"])
+                    mock_run.assert_called_once_with(["/usr/bin/ccache", "-C"], env=mock.ANY, check=False)
 
 
 if __name__ == "__main__":

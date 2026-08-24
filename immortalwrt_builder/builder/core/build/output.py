@@ -98,23 +98,10 @@ def generate_digest_table(artifacts: list[dict[str, object]]) -> str:
 def write_digest_summary(
     work_root: Path,
     artifacts: list[dict[str, object]],
-    *,
-    summary_file_path: Path | None = None,
 ) -> str:
     table = generate_digest_table(artifacts)
     digest_path = layout.digest_file(work_root)
     digest_path.write_text(table, encoding="utf-8")
     print(f"\nGenerated digest summary table at {digest_path}:\n", flush=True)
     print(table, flush=True)
-
-    ci_summary_env = os.environ.get("GITHUB_STEP_SUMMARY")
-    target_summary = summary_file_path or (Path(ci_summary_env) if ci_summary_env else None)
-    if target_summary is not None:
-        try:
-            with target_summary.open("a", encoding="utf-8") as f:
-                f.write(f"\n### Firmware Build Digest\n\n{table}\n")
-            print(f"Appended digest summary to {target_summary}", flush=True)
-        except Exception as exc:
-            print(f"Warning: failed to append to summary file {target_summary}: {exc}", flush=True)
-
     return table

@@ -19,18 +19,15 @@ commit = "abc12345..."                                  # Optional Git commit SH
 depth = 1                                               # Shallow clone depth (default 1)
 submodules = false                                      # Sync git submodules (default false)
 
-[feeds]
-update = true                                           # Run ./scripts/feeds update -a
-install = true                                          # Run ./scripts/feeds install -a
-custom_feeds = [                                        # Extra feed lines appended to feeds.conf.default
-    "src-git extra https://github.com/example/extra_packages"
-]
-conf_file = "path/to/custom/feeds.conf.default"         # Optional custom feeds.conf.default
-
 [patch]
 pre_feeds_patches = ["patch1.py"]                       # Python patches executed before feeds update
 post_feeds_patches = ["patch2.py", "patch3.py"]         # Python patches executed after feeds install
 post_config_patches = ["post_config.py"]                # Python patches executed after make defconfig
+
+[patchConfig]
+# Arbitrary user-defined key-values accessible in Python patches via context.patch_config
+custom_router_ip = "192.168.10.1"
+enable_extra_theme = true
 
 [build]
 defconfig = "ax3000m.config"                            # Path to defconfig file (e.g. from ./scripts/diffconfig.sh)
@@ -41,8 +38,8 @@ ignore_errors = false                                   # Ignore compilation err
 
 [ccache]
 enabled = true                                          # Enable compiler cache (default: true)
-dir = "/path/to/custom/ccache"                          # Custom CCACHE_DIR (default: cache/<target>/ccache)
-max_size = "10G"                                        # CCACHE_MAXSIZE storage cap (default: 10G)
+dir = "/path/to/custom/ccache"                          # Custom CCACHE_DIR (default: cache/ccache/<arch_sig>)
+max_size = "3.5G"                                       # CCACHE_MAXSIZE storage cap (default: 3.5G)
 stats_log = false                                       # Export detailed per-file log to infos/ (default: false)
 
 [output]
@@ -67,10 +64,6 @@ firmware_patterns = [                                   # Glob patterns for firm
 Global settings are stored in `immortalwrt_builder/configs/global.toml`.
 
 ```toml
-[general]
-default_depth = 1
-default_download = true
-
 [workspace]
 # Custom workspace root directory for source-code, cache, and outputs.
 # Highly recommended for WSL environments to avoid slow Windows 9P filesystem (/mnt/c/...)
@@ -80,15 +73,29 @@ default_download = true
 
 ### Workspace Resolution Order
 1. CLI option `--work-root <path>`
-2. Environment variable `IWB_WORK_ROOT` / `IMMORTALWRT_WORK_ROOT`
-3. `global.toml` (`[workspace].work_root` or `[general].work_root`)
+2. Environment variable `IWB_WORK_ROOT`
+3. `global.toml` (`[workspace].work_root`)
 4. Current project directory (`Path.cwd()`)
 
 ---
 
-## 3. Python Patch Script Specification
+## 3. Toolchain & ccache Cross-Target Cache Sharing
 
-Every patch script is a Python 3.14+ script located in `immortalwrt_builder/configs/patchs/`. It receives a `PatchContext` object providing rich helper methods and access to the target configuration:
+- **Toolchain Cache**:
+  - Key calculation formula: `toolchain-{arch_signature}-{upstream_tree_hash}`
+  - Where `arch_signature` is `board-subtarget-arch-libc-gcc` and `upstream_tree_hash` is the tree hash of `tools/`, `toolchain/`, and `include/`.
+  - Multiple target definitions sharing the same hardware platform/architecture and upstream version (e.g. `360T7`, `AX3000M`, `WR30U` on `mediatek/filogic`) share the exact same toolchain cache, avoiding redundant GCC compilations.
+  - **Limitation Note**: Custom Python patch scripts are intentionally excluded from the toolchain cache key. If a patch script modifies underlying cross-compiler/toolchain source code, you must manually clear the toolchain cache or adjust `defconfig` to trigger a recompile.
+
+- **ccache Acceleration**:
+  - Automatically partitioned by `arch_signature` (`cache/ccache/<arch_sig>`) and shared across targets of the same architecture.
+  - Default cache cap is `3.5G`, managed automatically by ccache's built-in LRU eviction.
+
+---
+
+## 4. Python Patch Script Specification
+
+Every patch script is a Python 3.14+ script located in `immortalwrt_builder/configs/patchs/`. It receives a `PatchContext` object providing rich helper methods and access to the target configuration and `[patchConfig]` custom values:
 
 ```python
 # SPDX-License-Identifier: GPL-3.0-only
@@ -96,10 +103,11 @@ from immortalwrt_builder.builder.core.patch.interface import PatchContext
 
 
 def patch(context: PatchContext) -> None:
-    # 1. Access target config
+    # 1. Access target config & custom patchConfig values
     print(f"Applying patch for target: {context.target.name}")
+    router_ip = context.patch_config.get("custom_router_ip", "192.168.1.1")
 
     # 2. Modify files in source tree
-    context.replace_text("package/base-files/files/bin/config_generate", "192.168.1.1", "192.168.10.1")
+    context.replace_text("package/base-files/files/bin/config_generate", "192.168.1.1", router_ip)
     context.append_text("package/base-files/files/etc/sysctl.conf", "vm.swappiness=10\n")
 ```

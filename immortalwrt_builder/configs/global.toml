@@ -1,7 +1,3 @@
-[general]
-default_depth = 1
-default_download = true
-
 [workspace]
 # Custom workspace root directory for source-code, cache, and outputs.
 # Highly recommended for WSL environments to avoid slow Windows 9P filesystem (/mnt/c/...)

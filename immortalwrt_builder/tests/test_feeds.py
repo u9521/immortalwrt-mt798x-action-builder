@@ -8,32 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from immortalwrt_builder.builder.core.config.schema import FeedsConfig, GitSourceConfig, TargetConfig
 from immortalwrt_builder.builder.core.feeds import feeds
 
 
 class FeedsTests(unittest.TestCase):
-    def test_setup_feeds_appends_custom_feeds(self) -> None:
-        target = TargetConfig(
-            name="sample",
-            source=GitSourceConfig(url="https://example.com/repo.git"),
-            feeds=FeedsConfig(
-                update=False,
-                install=False,
-                custom_feeds=["src-git extra https://github.com/example/extra"],
-            ),
-        )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            source_dir = Path(temp_dir)
-            conf_file = source_dir / "feeds.conf.default"
-            conf_file.write_text("src-git packages https://git.openwrt.org/feed/packages.git\n", encoding="utf-8")
-
-            feeds.setup_feeds(target, source_dir)
-
-            content = conf_file.read_text(encoding="utf-8")
-            self.assertIn("src-git packages", content)
-            self.assertIn("src-git extra", content)
-
     def test_update_and_install_feeds_executes_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source_dir = Path(temp_dir)

@@ -23,7 +23,7 @@ def build_parser(subparsers: Any) -> None:
     )
     add_target_argument(parser)
     add_work_root_argument(parser)
-    parser.add_argument("--skip-patches", "--skip-diy", action="store_true", help="Skip executing Python patch scripts")
+    parser.add_argument("--skip-patches", action="store_true", help="Skip executing Python patch scripts")
     parser.set_defaults(handler=handle_configure)
 
 
@@ -38,8 +38,7 @@ def handle_configure(args: argparse.Namespace) -> int:
 
     prepare_config(target, source_dir)
 
-    skip_patch = getattr(args, "skip_patches", False) or getattr(args, "skip_diy", False)
-    if not skip_patch:
+    if not getattr(args, "skip_patches", False):
         apply_post_config_patches(target, source_dir, work_root)
 
     return 0

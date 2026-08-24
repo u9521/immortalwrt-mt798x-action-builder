@@ -18,8 +18,6 @@ class GlobalConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             project_root = Path(temp_dir)
             cfg = load_global_config(project_root)
-            self.assertEqual(cfg.default_depth, 1)
-            self.assertTrue(cfg.default_download)
             self.assertIsNone(cfg.work_root)
 
     def test_load_global_config_with_workspace_work_root(self) -> None:
@@ -29,9 +27,6 @@ class GlobalConfigTests(unittest.TestCase):
             global_file.parent.mkdir(parents=True, exist_ok=True)
             global_file.write_text(
                 """
-[general]
-default_depth = 2
-
 [workspace]
 work_root = "/tmp/custom-work"
 """,
@@ -39,7 +34,6 @@ work_root = "/tmp/custom-work"
             )
 
             cfg = load_global_config(project_root)
-            self.assertEqual(cfg.default_depth, 2)
             self.assertEqual(cfg.work_root, Path("/tmp/custom-work").resolve())
 
     def test_resolve_work_root_precedence(self) -> None:

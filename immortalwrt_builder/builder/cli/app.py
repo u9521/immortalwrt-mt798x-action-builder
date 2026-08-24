@@ -9,17 +9,14 @@ import sys
 # Import command modules for registration side effects
 from .commands import (
     build,  # noqa: F401
-    check_update,  # noqa: F401
     configure,  # noqa: F401
     digest,  # noqa: F401
     download,  # noqa: F401
-    run_all,  # noqa: F401
-    setup_feeds,  # noqa: F401
+    feeds,  # noqa: F401
     show_target,  # noqa: F401
     sync_source,  # noqa: F401
     toolchain,  # noqa: F401
     tools,  # noqa: F401
-    usage,  # noqa: F401
 )
 from .registry import get_commands
 

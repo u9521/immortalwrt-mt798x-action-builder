@@ -9,6 +9,7 @@ from ... import layout
 from ...usage_report import write_usage_report
 from ...utils import ensure_directory
 from ..config.schema import TargetConfig
+from .arch import extract_arch_signature
 from .ccache import (
     clear_ccache,
     export_ccache_stats,
@@ -76,6 +77,7 @@ __all__ = [
     "download_packages",
     "execute_build_pipeline",
     "export_ccache_stats",
+    "extract_arch_signature",
     "generate_digest_table",
     "is_ccache_available",
     "is_openwrt_ccache_enabled",

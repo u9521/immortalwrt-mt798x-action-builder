@@ -19,7 +19,6 @@ def build_parser(subparsers: Any) -> None:
     parser = subparsers.add_parser("digest", help="Compute MD5 and SHA256 checksums of built firmware artifacts")
     add_target_argument(parser)
     add_work_root_argument(parser)
-    parser.add_argument("--summary-file", help="Path to markdown step summary file (or GITHUB_STEP_SUMMARY)")
     parser.set_defaults(handler=handle_digest)
 
 
@@ -35,6 +34,5 @@ def handle_digest(args: argparse.Namespace) -> int:
         print("No firmware artifacts found to compute digest for.", flush=True)
         return 0
 
-    summary_file_path = Path(args.summary_file).resolve() if args.summary_file else None
-    write_digest_summary(work_root, artifacts, summary_file_path=summary_file_path)
+    write_digest_summary(work_root, artifacts)
     return 0

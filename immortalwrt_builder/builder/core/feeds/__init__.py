@@ -3,10 +3,9 @@
 
 from __future__ import annotations
 
-from .feeds import install_feeds, setup_feeds, update_feeds
+from .feeds import install_feeds, update_feeds
 
 __all__ = [
     "install_feeds",
-    "setup_feeds",
     "update_feeds",
 ]

@@ -15,7 +15,6 @@ from .resolver import (
 )
 from .schema import (
     BuildConfig,
-    FeedsConfig,
     GitSourceConfig,
     OutputConfig,
     PatchConfig,
@@ -25,7 +24,6 @@ from .validator import validate_target
 
 __all__ = [
     "BuildConfig",
-    "FeedsConfig",
     "GitSourceConfig",
     "GlobalConfig",
     "OutputConfig",

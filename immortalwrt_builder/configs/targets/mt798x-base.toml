@@ -7,17 +7,13 @@ branch = "openwrt-21.02"
 depth = 1
 submodules = false
 
-[feeds]
-update = true
-install = true
-
 [build]
 download = true
 ignore_errors = false
 
 [ccache]
 enabled = true
-max_size = "10G"
+max_size = "3.5G"
 
 [toolchain_cache]
 enabled = true

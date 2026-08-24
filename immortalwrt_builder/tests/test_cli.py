@@ -31,15 +31,14 @@ class CliTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("show-target", output)
         self.assertIn("sync-source", output)
-        self.assertIn("setup-feeds", output)
+        self.assertIn("feeds-update", output)
+        self.assertIn("feeds-install", output)
         self.assertIn("configure", output)
         self.assertIn("download", output)
         self.assertIn("build", output)
         self.assertIn("digest", output)
-        self.assertIn("run", output)
-        self.assertIn("check-update", output)
         self.assertIn("tools", output)
-        self.assertIn("usage", output)
+        self.assertNotIn("setup-feeds", output)
 
     def test_show_target_command_runs(self) -> None:
         target = _dummy_target("sample")
@@ -68,6 +67,34 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(ret, 0)
         mock_sync.assert_called_once()
+
+    def test_feeds_update_command_invokes_update(self) -> None:
+        target = _dummy_target("sample")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_root = Path(temp_dir)
+            (work_root / "source-code" / "sample").mkdir(parents=True, exist_ok=True)
+            with mock.patch.object(Path, "cwd", return_value=work_root):
+                with mock.patch("immortalwrt_builder.builder.cli.commands.feeds.TargetConfigProvider") as mock_provider:
+                    mock_provider.return_value.load.return_value = target
+                    with mock.patch("immortalwrt_builder.builder.cli.commands.feeds.update_feeds") as mock_update:
+                        ret = main(["feeds-update", "--target", "sample"])
+
+        self.assertEqual(ret, 0)
+        mock_update.assert_called_once()
+
+    def test_feeds_install_command_invokes_install(self) -> None:
+        target = _dummy_target("sample")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_root = Path(temp_dir)
+            (work_root / "source-code" / "sample").mkdir(parents=True, exist_ok=True)
+            with mock.patch.object(Path, "cwd", return_value=work_root):
+                with mock.patch("immortalwrt_builder.builder.cli.commands.feeds.TargetConfigProvider") as mock_provider:
+                    mock_provider.return_value.load.return_value = target
+                    with mock.patch("immortalwrt_builder.builder.cli.commands.feeds.install_feeds") as mock_install:
+                        ret = main(["feeds-install", "--target", "sample"])
+
+        self.assertEqual(ret, 0)
+        mock_install.assert_called_once()
 
     def test_build_command_invokes_build(self) -> None:
         target = _dummy_target("sample")

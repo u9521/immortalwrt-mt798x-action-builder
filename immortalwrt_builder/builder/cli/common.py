@@ -13,7 +13,7 @@ DEFAULT_JOBS = os.cpu_count() or 1
 
 
 def add_target_argument(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--target", help="Target name; defaults to IWB_TARGET or IMMORTALWRT_TARGET when set")
+    parser.add_argument("--target", help="Target name; defaults to IWB_TARGET when set")
 
 
 def add_jobs_argument(parser: argparse.ArgumentParser) -> None:

@@ -65,7 +65,7 @@ def resolve_work_root(
     if cli_work_root:
         return Path(cli_work_root).expanduser().resolve()
 
-    env_work_root = os.environ.get("IWB_WORK_ROOT") or os.environ.get("IMMORTALWRT_WORK_ROOT")
+    env_work_root = os.environ.get("IWB_WORK_ROOT")
     if env_work_root and env_work_root.strip():
         return Path(env_work_root.strip()).expanduser().resolve()
 
@@ -75,8 +75,7 @@ def resolve_work_root(
         try:
             payload = tomllib.loads(global_cfg_file.read_text(encoding="utf-8")) or {}
             workspace = payload.get("workspace", {})
-            general = payload.get("general", {})
-            raw = workspace.get("work_root") or general.get("work_root")
+            raw = workspace.get("work_root")
             if raw and isinstance(raw, str) and raw.strip():
                 p = Path(raw.strip()).expanduser()
                 return p.resolve() if p.is_absolute() else (root / p).resolve()
@@ -100,6 +99,10 @@ def cache_root(work_root: Path) -> Path:
 
 def target_cache_root(work_root: Path, target_name: str) -> Path:
     return cache_root(work_root) / target_name
+
+
+def arch_ccache_dir(work_root: Path, arch_sig: str) -> Path:
+    return cache_root(work_root) / "ccache" / arch_sig
 
 
 def target_ccache_dir(work_root: Path, target_name: str) -> Path:

@@ -11,7 +11,6 @@ from ... import layout
 from ...utils import run_command
 from ..config.schema import TargetConfig
 from .ccache import (
-    check_ccache_config_match,
     configure_ccache_in_dot_config,
     export_ccache_stats,
     get_ccache_binary,
@@ -40,9 +39,7 @@ def prepare_config(target: TargetConfig, source_dir: Path) -> Path:
         dot_config.touch()
 
     if target.ccache.enabled:
-        ccache_dir: Path | None = None
-        if target.ccache.dir is not None:
-            ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
+        ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
         configure_ccache_in_dot_config(dot_config, ccache_dir)
 
     print("Generating configuration (make defconfig)...", flush=True)
@@ -96,38 +93,25 @@ def build_firmware(
     resolved_jobs = jobs or target.build.jobs or (os.cpu_count() or 1)
     is_verbose = verbose if verbose is not None else target.build.verbose
 
-    dot_config = source_dir / ".config"
     env = os.environ.copy()
     ccache_dir: Path | None = None
     infos_dir = layout.target_infos_root(work_root, target.name)
     ccache_active = False
 
     if target.ccache.enabled:
-        expected_dir: Path | None = None
-        if target.ccache.dir is not None:
-            expected_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
-
-        matched, reason = check_ccache_config_match(dot_config, expected_dir)
-        if matched:
-            ccache_active = True
-            if expected_dir is not None:
-                ccache_dir = expected_dir
-            else:
-                ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
-
-            ccache_bin = get_ccache_binary(source_dir)
-            ccache_log_file = (infos_dir / "ccache.log").resolve() if target.ccache.log_file else None
-            print_ccache_banner(
-                ccache_dir,
-                target.ccache.max_size,
-                ccache_bin=ccache_bin,
-                compiler_check=target.ccache.compiler_check,
-                sloppiness=target.ccache.sloppiness,
-                log_file=ccache_log_file,
-            )
-            env = setup_ccache_environment(target, ccache_dir, infos_dir, source_dir=source_dir, base_env=env)
-        else:
-            print(f"\n[CCACHE CHECK] Warning: ccache configuration in .config is {reason}", flush=True)
+        ccache_active = True
+        ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
+        ccache_bin = get_ccache_binary(source_dir)
+        ccache_log_file = (infos_dir / "ccache.log").resolve() if target.ccache.log_file else None
+        print_ccache_banner(
+            ccache_dir,
+            target.ccache.max_size,
+            ccache_bin=ccache_bin,
+            compiler_check=target.ccache.compiler_check,
+            sloppiness=target.ccache.sloppiness,
+            log_file=ccache_log_file,
+        )
+        env = setup_ccache_environment(target, ccache_dir, infos_dir, source_dir=source_dir, base_env=env)
 
     # Toolchain Cache: check and restore
     if target.toolchain_cache.enabled:

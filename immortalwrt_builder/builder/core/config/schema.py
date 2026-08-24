@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -16,14 +17,6 @@ class GitSourceConfig:
     commit: str | None = None
     depth: int = 1
     submodules: bool = False
-
-
-@dataclass(slots=True)
-class FeedsConfig:
-    update: bool = True
-    install: bool = True
-    custom_feeds: list[str] = field(default_factory=list)
-    conf_file: Path | None = None
 
 
 @dataclass(slots=True)
@@ -46,7 +39,7 @@ class BuildConfig:
 class CcacheConfig:
     enabled: bool = True
     dir: Path | None = None
-    max_size: str = "10G"
+    max_size: str = "3.5G"
     stats_log: bool = False
     compiler_check: str = "%compiler% -v"
     sloppiness: str = "time_macros,include_file_mtime,include_file_ctime,file_macro"
@@ -89,8 +82,8 @@ class TargetConfig:
     name: str
     base: bool = False
     source: GitSourceConfig = field(default_factory=GitSourceConfig)
-    feeds: FeedsConfig = field(default_factory=FeedsConfig)
     patch: PatchConfig = field(default_factory=PatchConfig)
+    patch_config: dict[str, Any] = field(default_factory=dict)
     build: BuildConfig = field(default_factory=BuildConfig)
     ccache: CcacheConfig = field(default_factory=CcacheConfig)
     toolchain_cache: ToolchainCacheConfig = field(default_factory=ToolchainCacheConfig)

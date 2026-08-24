@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 import shutil
-import tarfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +14,7 @@ from pathlib import Path
 from ... import layout
 from ...utils import ensure_directory, run_command
 from ..config.schema import TargetConfig
+from .arch import extract_arch_signature
 
 
 def compute_toolchain_key(
@@ -23,85 +23,27 @@ def compute_toolchain_key(
     *,
     work_root: Path | None = None,
 ) -> str:
-    """Compute a deterministic cache key for the target toolchain."""
+    """Compute a deterministic, cross-target cache key for the target toolchain."""
     source_dir = source_dir.resolve()
+    arch_sig = extract_arch_signature(source_dir, target.build.defconfig_path)
+
     hasher = hashlib.sha256()
+    hasher.update(arch_sig.encode("utf-8"))
 
-    # 1. Target basic identifier
-    hasher.update(target.name.encode("utf-8"))
-
-    # 2. Extract toolchain symbols from .config if present, or fallback to defconfig
-    dot_config = source_dir / ".config"
-    config_content = ""
-    if dot_config.exists():
-        config_content = dot_config.read_text(encoding="utf-8", errors="replace")
-    elif target.build.defconfig_path is not None and target.build.defconfig_path.exists():
-        config_content = target.build.defconfig_path.read_text(encoding="utf-8", errors="replace")
-
-    arch = "unknown"
-    target_board = "unknown"
-    target_subtarget = "unknown"
-    gcc_ver = "unknown"
-    libc = "unknown"
-    binutils_ver = "unknown"
-
-    for line in config_content.splitlines():
-        line = line.strip()
-        if line.startswith("CONFIG_ARCH="):
-            arch = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_TARGET_BOARD="):
-            target_board = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_TARGET_SUBTARGET="):
-            target_subtarget = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_GCC_VERSION="):
-            gcc_ver = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_LIBC="):
-            libc = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_BINUTILS_VERSION="):
-            binutils_ver = line.split("=", 1)[1].strip("\"'")
-        elif line.startswith("CONFIG_TARGET_") and line.endswith("=y"):
-            parts = line[len("CONFIG_TARGET_") : -2].split("_")
-            if target_board == "unknown" and len(parts) >= 1:
-                target_board = parts[0]
-            if target_subtarget == "unknown" and len(parts) >= 2 and parts[1] != "DEVICE":
-                target_subtarget = parts[1]
-
-    # Include source ref (commit > tag > branch) and repo url in hasher
     if target.source.url:
-        hasher.update(target.source.url.encode())
-    if target.source.commit:
-        hasher.update(f"commit:{target.source.commit}".encode())
-    elif target.source.tag:
-        hasher.update(f"tag:{target.source.tag}".encode())
-    elif target.source.branch:
-        hasher.update(f"branch:{target.source.branch}".encode())
+        hasher.update(target.source.url.encode("utf-8"))
 
-    config_signature = f"{arch}|{target_board}|{target_subtarget}|{gcc_ver}|{libc}|{binutils_ver}"
-    hasher.update(config_signature.encode("utf-8"))
-
-    # 3. Git tree hashes for tools, toolchain, and include if in a git repo
     git_tree_hash = _get_git_tree_hash(source_dir)
     hasher.update(git_tree_hash.encode("utf-8"))
 
-    # 4. Hash of target patches
-    all_patches = [
-        *target.patch.pre_feeds_patches,
-        *target.patch.post_feeds_patches,
-        *target.patch.post_config_patches,
-    ]
-    for patch_file in sorted(all_patches):
-        if patch_file.exists():
-            hasher.update(patch_file.read_bytes())
-
-    digest = hasher.hexdigest()[:16]
-    return f"toolchain-{target.name}-{arch}-{gcc_ver}-{libc}-{digest}"
+    tree_digest = hasher.hexdigest()[:12]
+    return f"toolchain-{arch_sig}-{tree_digest}"
 
 
 def _get_git_tree_hash(source_dir: Path) -> str:
     """Get tree hashes for tools, toolchain, and include directories."""
     git_dir = source_dir / ".git"
     if not git_dir.exists():
-        # Fallback: hash the directory names/timestamps if git is missing
         return "nogit"
 
     result = run_command(
@@ -114,7 +56,6 @@ def _get_git_tree_hash(source_dir: Path) -> str:
     if result.returncode == 0 and result.stdout.strip():
         return hashlib.sha256(result.stdout.strip().encode("utf-8")).hexdigest()[:16]
 
-    # Fallback to HEAD commit
     result_head = run_command(
         ["git", "rev-parse", "HEAD"],
         cwd=source_dir,
@@ -225,7 +166,7 @@ def save_toolchain_cache(
     *,
     key: str | None = None,
 ) -> Path:
-    """Archive staging_dir/host, toolchain-*, and hostpkg to a compressed tarball."""
+    """Archive staging_dir/host, toolchain-*, and hostpkg to a compressed tarball using system tar."""
     source_dir = source_dir.resolve()
     archive_path = archive_path.resolve()
     staging_dir = source_dir / "staging_dir"
@@ -266,23 +207,12 @@ def save_toolchain_cache(
     if temp_archive.exists():
         temp_archive.unlink()
 
-    saved = False
-    if shutil.which("tar"):
-        res = run_command(
-            ["tar", "-czf", str(temp_archive), "-C", str(source_dir), *subdirs_to_pack],
-            check=False,
-            capture_output=True,
-            echo=False,
-        )
-        if res.returncode == 0:
-            saved = True
-
-    if not saved:
-        with tarfile.open(temp_archive, "w:gz") as tar:
-            for rel_path in subdirs_to_pack:
-                full_path = source_dir / rel_path
-                if full_path.exists():
-                    tar.add(full_path, arcname=rel_path)
+    run_command(
+        ["tar", "-czf", str(temp_archive), "-C", str(source_dir), *subdirs_to_pack],
+        check=True,
+        capture_output=True,
+        echo=False,
+    )
 
     # Atomic move
     if archive_path.exists():
@@ -299,7 +229,7 @@ def restore_toolchain_cache(
     source_dir: Path,
     archive_path: Path,
 ) -> bool:
-    """Extract toolchain cache archive into source_dir and refresh stamps."""
+    """Extract toolchain cache archive into source_dir using system tar and refresh stamps."""
     source_dir = source_dir.resolve()
     archive_path = archive_path.resolve()
 
@@ -312,37 +242,15 @@ def restore_toolchain_cache(
 
     ensure_directory(source_dir)
 
-    extracted = False
-    error_msg = ""
-
-    # 1. Prefer system tar for speed and full preservation of symlinks/hardlinks
-    if shutil.which("tar"):
-        res = run_command(
+    try:
+        run_command(
             ["tar", "-xf", str(archive_path), "-C", str(source_dir)],
-            check=False,
+            check=True,
             capture_output=True,
             echo=False,
         )
-        if res.returncode == 0:
-            extracted = True
-        else:
-            error_msg = res.stderr.strip() or f"tar exited with code {res.returncode}"
-
-    # 2. Fallback to Python tarfile with fully_trusted filter
-    if not extracted:
-        try:
-            with tarfile.open(archive_path, "r:*") as tar:
-                if hasattr(tarfile, "fully_trusted_filter"):
-                    tar.extractall(path=source_dir, filter="fully_trusted")
-                else:
-                    tar.extractall(path=source_dir)
-            extracted = True
-        except Exception as exc:
-            error_msg = str(exc)
-
-    if not extracted:
-        print(f"[TOOLCHAIN CACHE WARNING] Failed to extract archive {archive_path}: {error_msg}", flush=True)
-        # Clean corrupted staging_dir
+    except Exception as exc:
+        print(f"[TOOLCHAIN CACHE WARNING] Failed to extract archive {archive_path}: {exc}", flush=True)
         corrupted_staging = source_dir / "staging_dir"
         if corrupted_staging.exists():
             shutil.rmtree(corrupted_staging, ignore_errors=True)

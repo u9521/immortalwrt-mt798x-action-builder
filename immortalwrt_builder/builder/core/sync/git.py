@@ -14,46 +14,45 @@ def clone_or_fetch_repo(source: GitSourceConfig, destination: Path) -> None:
         raise ValueError("Source URL cannot be empty")
 
     destination = destination.resolve()
+    ensure_directory(destination)
     git_dir = destination / ".git"
 
-    if git_dir.exists():
-        print(f"Updating existing repository at {destination}...", flush=True)
-        if source.commit:
-            run_command(["git", "fetch", "origin"], cwd=destination)
-            run_command(["git", "checkout", source.commit], cwd=destination)
-        elif source.tag:
-            run_command(["git", "fetch", "origin", f"tags/{source.tag}"], cwd=destination)
-            run_command(["git", "checkout", f"tags/{source.tag}"], cwd=destination)
-        elif source.branch:
-            run_command(["git", "fetch", "origin", source.branch], cwd=destination)
-            run_command(["git", "checkout", "-B", source.branch, f"origin/{source.branch}"], cwd=destination)
-        else:
-            run_command(["git", "fetch", "origin", "HEAD"], cwd=destination)
-            run_command(["git", "checkout", "FETCH_HEAD"], cwd=destination)
+    if not git_dir.exists():
+        print(f"Initializing repository at {destination}...", flush=True)
+        run_command(["git", "init"], cwd=destination)
+        run_command(["git", "remote", "add", "origin", source.url], cwd=destination)
     else:
-        print(f"Cloning repository from {source.url} into {destination}...", flush=True)
-        ensure_directory(destination.parent)
-        clone_cmd = ["git", "clone"]
-        if source.depth and source.depth > 0 and not source.commit:
-            clone_cmd.extend(["--depth", str(source.depth)])
+        print(f"Updating existing repository at {destination}...", flush=True)
+        run_command(["git", "remote", "set-url", "origin", source.url], cwd=destination, check=False)
 
-        if source.commit:
-            # Commit SHA checkout handled after clone
-            pass
-        elif source.tag:
-            clone_cmd.extend(["-b", source.tag])
-        elif source.branch:
-            clone_cmd.extend(["-b", source.branch])
+    depth_args = ["--depth", str(source.depth)] if source.depth and source.depth > 0 else []
 
-        clone_cmd.extend([source.url, str(destination)])
-        run_command(clone_cmd)
-
-        if source.commit:
-            run_command(["git", "checkout", source.commit], cwd=destination)
+    if source.commit:
+        print(f"Fetching commit {source.commit} from {source.url}...", flush=True)
+        run_command(["git", "fetch", *depth_args, "origin", source.commit], cwd=destination)
+        run_command(["git", "checkout", "FETCH_HEAD"], cwd=destination)
+    elif source.tag:
+        print(f"Fetching tag {source.tag} from {source.url}...", flush=True)
+        run_command(
+            ["git", "fetch", *depth_args, "origin", f"refs/tags/{source.tag}:refs/tags/{source.tag}"],
+            cwd=destination,
+        )
+        run_command(["git", "checkout", f"refs/tags/{source.tag}"], cwd=destination)
+    elif source.branch:
+        print(f"Fetching branch {source.branch} from {source.url}...", flush=True)
+        run_command(["git", "fetch", *depth_args, "origin", source.branch], cwd=destination)
+        run_command(["git", "checkout", "-B", source.branch, "FETCH_HEAD"], cwd=destination)
+    else:
+        print(f"Fetching HEAD from {source.url}...", flush=True)
+        run_command(["git", "fetch", *depth_args, "origin", "HEAD"], cwd=destination)
+        run_command(["git", "checkout", "FETCH_HEAD"], cwd=destination)
 
     if source.submodules:
         print("Updating git submodules...", flush=True)
-        run_command(["git", "submodule", "update", "--init", "--recursive"], cwd=destination)
+        sub_cmd = ["git", "submodule", "update", "--init", "--recursive"]
+        if source.depth and source.depth > 0:
+            sub_cmd.extend(["--depth", str(source.depth)])
+        run_command(sub_cmd, cwd=destination)
 
 
 def get_local_head_commit(repo_dir: Path) -> str:

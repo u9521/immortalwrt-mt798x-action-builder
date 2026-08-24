@@ -18,6 +18,8 @@ Guidance for coding agents working in `immortalwrt-action-builder`.
 - Checked-in defconfigs & fragments: `immortalwrt_builder/configs/defconfigs/`
 - Checked-in Python patch scripts: `immortalwrt_builder/configs/patchs/`
 - Reference docs: `immortalwrt_builder/docs/`
+- Agent Notes & ADRs: `.agents/notes/`
+- Verification Gates: `scripts/gates/`
 
 ## Setup Commands
 
@@ -29,20 +31,34 @@ Guidance for coding agents working in `immortalwrt-action-builder`.
 - CLI help: `uv run iwb --help`
 - Show target: `uv run iwb show-target --target official-mt7981-ax3000m`
 - Sync source: `uv run iwb sync-source --target official-mt7981-ax3000m`
-- Setup feeds & patches: `uv run iwb setup-feeds --target official-mt7981-ax3000m`
+- Update feeds & pre-patches: `uv run iwb feeds-update --target official-mt7981-ax3000m`
+- Install feeds & post-patches: `uv run iwb feeds-install --target official-mt7981-ax3000m`
 - Configure (.config + fragments): `uv run iwb configure --target official-mt7981-ax3000m`
 - Download packages: `uv run iwb download --target official-mt7981-ax3000m`
 - Build firmware: `uv run iwb build --target official-mt7981-ax3000m`
 - Calculate digest: `uv run iwb digest --target official-mt7981-ax3000m`
-- Run full pipeline: `uv run iwb run --target official-mt7981-ax3000m`
-- Print workspace disk usage: `uv run iwb usage`
+- Print workspace disk usage: `uv run iwb tools usage --target official-mt7981-ax3000m`
 
-## Test & Lint Commands
+## Test, Lint & Verification Commands
 
-- Full suite: `uv run python -m unittest discover -s immortalwrt_builder/tests`
+- Full test suite: `python3 -m unittest discover -s immortalwrt_builder/tests`
+- Verification gates: `python3 scripts/gates/verify_agent_gates.py`
 - Ruff format: `uv run ruff format .`
 - Ruff lint: `uv run ruff check --fix .`
-- Pyright type check: `npx pyright`
+- Pyright type check: `npx pyright` (or `npx --cache /tmp/npm-cache pyright`)
+
+## Agent-Native Governance & Invariants
+
+1. **Safety & Code Modification Boundary**:
+   - Direct changes without confirmation are limited to specification and governance paths: `AGENTS.md`, `.agents/**`, `docs/**`, and `scripts/gates/**`.
+   - Modifying existing application/production source code or build configuration files requires explicit user confirmation.
+2. **Agent Notes Requirement**:
+   - Every non-trivial change (architecture, interfaces, policies, pipeline workflows) must create or update an Agent Note in `.agents/notes/` in the same commit.
+   - See [.agents/notes/README.md](.agents/notes/README.md) for note lifecycle rules and headers.
+3. **One Home Per Fact**:
+   - Link to canonical locations rather than duplicating rules or descriptions across multiple files.
+4. **Wordcount Budget**:
+   - Root `AGENTS.md` target budget is <= 1,500 words.
 
 ## File Creation Rules
 

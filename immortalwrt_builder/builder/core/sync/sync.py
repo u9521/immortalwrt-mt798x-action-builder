@@ -53,13 +53,6 @@ def sync_source(
     metadata_file = layout.target_metadata_file(work_root, target.name)
     write_json(metadata_file, metadata)
 
-    legacy_infos_dir = layout.infos_root(work_root)
-    if legacy_infos_dir.exists():
-        if upstream_commit:
-            (legacy_infos_dir / "lastUpstreamCommit").write_text(f"{upstream_commit}\n", encoding="utf-8")
-        if local_commit:
-            (legacy_infos_dir / "lastCommit").write_text(f"{local_commit}\n", encoding="utf-8")
-
     return metadata
 
 

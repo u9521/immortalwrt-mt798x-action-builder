@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ...utils import ensure_directory, run_command
 
@@ -21,6 +21,11 @@ class PatchContext:
     target: TargetConfig
     source_dir: Path
     work_root: Path
+
+    @property
+    def patch_config(self) -> dict[str, Any]:
+        """Access target-specific [patchConfig] mapping."""
+        return self.target.patch_config
 
     def path(self, relative_path: str | Path) -> Path:
         """Resolve a path relative to source_dir."""

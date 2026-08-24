@@ -7,11 +7,11 @@ import json
 import os
 import tomllib
 from pathlib import Path
+from typing import Any
 
 from .schema import (
     BuildConfig,
     CcacheConfig,
-    FeedsConfig,
     GitSourceConfig,
     OutputConfig,
     PatchConfig,
@@ -25,23 +25,19 @@ _TARGET_ROOT_KEYS = {
     "base",
     "extends",
     "source",
-    "feeds",
     "patch",
-    "diy",
+    "patchConfig",
+    "patch_config",
     "build",
     "ccache",
     "toolchain_cache",
     "output",
 }
 _SOURCE_KEYS = {"url", "branch", "tag", "commit", "depth", "submodules"}
-_FEEDS_KEYS = {"update", "install", "custom_feeds", "conf_file"}
 _PATCH_KEYS = {
     "pre_feeds_patches",
     "post_feeds_patches",
     "post_config_patches",
-    "pre_feeds_scripts",
-    "post_feeds_scripts",
-    "post_config_scripts",
 }
 _BUILD_KEYS = {
     "defconfig_path",
@@ -87,8 +83,8 @@ def parse_target_definition_file(
 
     base = _optional_bool(payload.get("base"), default=False, field="base", config_path=path)
     source = _parse_source_config(payload.get("source"), path)
-    feeds = _parse_feeds_config(payload.get("feeds"), path)
-    patch = _parse_patch_config(payload.get("patch") or payload.get("diy"), path, patchs_root=patchs_root)
+    patch = _parse_patch_config(payload.get("patch"), path, patchs_root=patchs_root)
+    patch_config = _parse_patch_config_dict(payload.get("patchConfig") or payload.get("patch_config"), path)
     build = _parse_build_config(payload.get("build"), path, defconfigs_root=defconfigs_root)
     ccache = _parse_ccache_config(payload.get("ccache"), path)
     toolchain_cache = _parse_toolchain_cache_config(payload.get("toolchain_cache"), path)
@@ -98,8 +94,8 @@ def parse_target_definition_file(
         name=name,
         base=base,
         source=source,
-        feeds=feeds,
         patch=patch,
+        patch_config=patch_config,
         build=build,
         ccache=ccache,
         toolchain_cache=toolchain_cache,
@@ -128,20 +124,12 @@ def _parse_source_config(value: object, config_path: Path) -> GitSourceConfig:
     )
 
 
-def _parse_feeds_config(value: object, config_path: Path) -> FeedsConfig:
+def _parse_patch_config_dict(value: object, config_path: Path) -> dict[str, Any]:
     if value is None:
-        return FeedsConfig()
+        return {}
     if not isinstance(value, dict):
-        raise ValueError(f"Invalid 'feeds' table in {config_path}: expected mapping")
-    _reject_unknown_keys(value, _FEEDS_KEYS, "feeds", config_path)
-    conf_file_str = _optional_string(value.get("conf_file"), field="feeds.conf_file", config_path=config_path)
-    conf_file_path = (config_path.parent / conf_file_str).resolve() if conf_file_str else None
-    return FeedsConfig(
-        update=_optional_bool(value.get("update"), default=True, field="feeds.update", config_path=config_path),
-        install=_optional_bool(value.get("install"), default=True, field="feeds.install", config_path=config_path),
-        custom_feeds=_string_list(value.get("custom_feeds"), [], config_path, "feeds.custom_feeds"),
-        conf_file=conf_file_path,
-    )
+        raise ValueError(f"Invalid 'patchConfig' table in {config_path}: expected mapping")
+    return dict(value)
 
 
 def _parse_patch_config(value: object, config_path: Path, *, patchs_root: Path | None) -> PatchConfig:
@@ -151,9 +139,9 @@ def _parse_patch_config(value: object, config_path: Path, *, patchs_root: Path |
         raise ValueError(f"Invalid 'patch' table in {config_path}: expected mapping")
     _reject_unknown_keys(value, _PATCH_KEYS, "patch", config_path)
 
-    pre_raw = value.get("pre_feeds_patches") or value.get("pre_feeds_scripts")
-    post_raw = value.get("post_feeds_patches") or value.get("post_feeds_scripts")
-    post_cfg_raw = value.get("post_config_patches") or value.get("post_config_scripts")
+    pre_raw = value.get("pre_feeds_patches")
+    post_raw = value.get("post_feeds_patches")
+    post_cfg_raw = value.get("post_config_patches")
 
     return PatchConfig(
         pre_feeds_patches=_resolve_path_list(pre_raw, patchs_root, config_path),
@@ -209,7 +197,7 @@ def _parse_ccache_config(value: object, config_path: Path) -> CcacheConfig:
     return CcacheConfig(
         enabled=_optional_bool(value.get("enabled"), default=True, field="ccache.enabled", config_path=config_path),
         dir=dir_path,
-        max_size=_optional_string(value.get("max_size"), field="ccache.max_size", config_path=config_path) or "10G",
+        max_size=_optional_string(value.get("max_size"), field="ccache.max_size", config_path=config_path) or "3.5G",
         stats_log=_optional_bool(
             value.get("stats_log"), default=False, field="ccache.stats_log", config_path=config_path
         ),

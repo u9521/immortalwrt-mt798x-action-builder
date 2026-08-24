@@ -51,7 +51,7 @@ class ToolchainCacheTests(unittest.TestCase):
             )
 
             key = compute_toolchain_key(self.target, source_dir)
-            self.assertTrue(key.startswith("toolchain-test-target-aarch64-14.3.0-musl-"))
+            self.assertTrue(key.startswith("toolchain-mediatek-filogic-aarch64-musl-14.3.0-"))
             self.assertIn("aarch64", key)
             self.assertIn("14.3.0", key)
             self.assertIn("musl", key)
@@ -74,9 +74,38 @@ class ToolchainCacheTests(unittest.TestCase):
             )
 
             key = compute_toolchain_key(target, source_dir)
-            self.assertTrue(key.startswith("toolchain-x86-target-x86_64-13.3.0-musl-"))
+            self.assertTrue(key.startswith("toolchain-generic-generic-x86_64-musl-13.3.0-"))
 
-    def test_compute_toolchain_key_changes_on_patch_change(self) -> None:
+    def test_compute_toolchain_key_cross_target_sharing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = Path(temp_dir)
+            dot_config = source_dir / ".config"
+            dot_config.write_text(
+                'CONFIG_ARCH="aarch64"\n'
+                'CONFIG_TARGET_BOARD="mediatek"\n'
+                'CONFIG_TARGET_SUBTARGET="filogic"\n'
+                'CONFIG_GCC_VERSION="14.3.0"\n'
+                'CONFIG_LIBC="musl"\n',
+                encoding="utf-8",
+            )
+
+            target_a = TargetConfig(
+                name="target-360t7",
+                source=GitSourceConfig(url="https://github.com/immortalwrt/immortalwrt.git"),
+            )
+            target_b = TargetConfig(
+                name="target-ax3000m",
+                source=GitSourceConfig(url="https://github.com/immortalwrt/immortalwrt.git"),
+            )
+
+            key_a = compute_toolchain_key(target_a, source_dir)
+            key_b = compute_toolchain_key(target_b, source_dir)
+
+            # Different target names share the exact same toolchain key
+            self.assertEqual(key_a, key_b)
+            self.assertTrue(key_a.startswith("toolchain-mediatek-filogic-aarch64-musl-14.3.0-"))
+
+    def test_compute_toolchain_key_ignores_patch_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source_dir = Path(temp_dir) / "source"
             source_dir.mkdir()
@@ -92,7 +121,8 @@ class ToolchainCacheTests(unittest.TestCase):
 
             patch_file.write_text("# patch 1 modified\n", encoding="utf-8")
             key2 = compute_toolchain_key(target1, source_dir)
-            self.assertNotEqual(key1, key2)
+            # Patch modifications do not invalidate toolchain cache
+            self.assertEqual(key1, key2)
 
     def test_touch_toolchain_stamps_refreshes_mtime_without_clock_skew(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -128,8 +158,6 @@ class ToolchainCacheTests(unittest.TestCase):
             self.assertLessEqual(host_stamp.stat().st_mtime, after + 1)
             self.assertGreaterEqual(tc_stamp.stat().st_mtime, before - 1)
             self.assertLessEqual(tc_stamp.stat().st_mtime, after + 1)
-
-            # Target stamp must remain in the past (isolated from toolchain touch)
             self.assertAlmostEqual(target_stamp.stat().st_mtime, past_time, delta=2)
 
     def test_is_toolchain_cached_detection(self) -> None:
@@ -200,22 +228,16 @@ class ToolchainCacheTests(unittest.TestCase):
             success = restore_toolchain_cache(self.target, source_dir, corrupted_archive)
             self.assertFalse(success)
 
-    def test_resolve_and_clear_toolchain_cache(self) -> None:
+    def test_clear_toolchain_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             work_root = Path(temp_dir)
-            archive_path = resolve_toolchain_archive_path(self.target, work_root)
-            self.assertEqual(
-                archive_path,
-                (work_root / "cache" / "test-target" / "toolchain" / "toolchain-test-target.tar.gz").resolve(),
-            )
-
-            archive_path.parent.mkdir(parents=True, exist_ok=True)
-            archive_path.write_text("dummy", encoding="utf-8")
-            self.assertTrue(archive_path.exists())
+            archive = resolve_toolchain_archive_path(self.target, work_root)
+            archive.parent.mkdir(parents=True)
+            archive.write_text("dummy", encoding="utf-8")
 
             removed = clear_toolchain_cache(self.target, work_root)
             self.assertTrue(removed)
-            self.assertFalse(archive_path.exists())
+            self.assertFalse(archive.exists())
 
 
 if __name__ == "__main__":

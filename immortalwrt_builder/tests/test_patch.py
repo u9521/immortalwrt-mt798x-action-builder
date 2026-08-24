@@ -20,11 +20,16 @@ class PatchTests(unittest.TestCase):
             source_dir.mkdir()
             work_root = Path(temp_dir)
 
-            target = TargetConfig(name="test", source=GitSourceConfig(url="https://example.com"))
+            target = TargetConfig(
+                name="test",
+                source=GitSourceConfig(url="https://example.com"),
+                patch_config={"router_ip": "192.168.10.1"},
+            )
             ctx = PatchContext(target=target, source_dir=source_dir, work_root=work_root)
 
             # Test target access
             self.assertEqual(ctx.target.name, "test")
+            self.assertEqual(ctx.patch_config.get("router_ip"), "192.168.10.1")
 
             # Test write_text, read_text, exists
             ctx.write_text("package/test.txt", "hello world\n")
@@ -66,18 +71,22 @@ class PatchTests(unittest.TestCase):
 from immortalwrt_builder.builder.core.patch.interface import PatchContext
 
 def patch(context: PatchContext) -> None:
-    context.write_text("output.txt", f"Target: {context.target.name}")
+    context.write_text("output.txt", f"Target: {context.target.name}, IP: {context.patch_config.get('ip')}")
 """,
                 encoding="utf-8",
             )
 
-            target = TargetConfig(name="sample-target", source=GitSourceConfig(url="https://example.com"))
+            target = TargetConfig(
+                name="sample-target",
+                source=GitSourceConfig(url="https://example.com"),
+                patch_config={"ip": "10.0.0.1"},
+            )
             ctx = PatchContext(target=target, source_dir=source_dir, work_root=work_root)
 
             execute_python_patch(patch_file, ctx)
 
             self.assertTrue(ctx.exists("output.txt"))
-            self.assertEqual(ctx.read_text("output.txt"), "Target: sample-target")
+            self.assertEqual(ctx.read_text("output.txt"), "Target: sample-target, IP: 10.0.0.1")
 
     def test_execute_python_patch_rejects_non_python_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

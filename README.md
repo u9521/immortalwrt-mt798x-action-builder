@@ -103,17 +103,16 @@ sudo ./immortalwrt_builder/scripts/uninstall-deps.sh --file installed-deps.txt
 |:---|:---|:---|
 | `iwb show-target` | Display resolved target configuration | `uv run iwb show-target --target official-mt7981-ax3000m` |
 | `iwb sync-source` | Clone or update target source code | `uv run iwb sync-source --target official-mt7981-ax3000m` |
-| `iwb setup-feeds` | Update & install feeds, apply pre/post patches | `uv run iwb setup-feeds --target official-mt7981-ax3000m` |
+| `iwb feeds-update` | Update feeds & apply pre-feeds patches | `uv run iwb feeds-update --target official-mt7981-ax3000m` |
+| `iwb feeds-install` | Install feeds & apply post-feeds patches | `uv run iwb feeds-install --target official-mt7981-ax3000m` |
 | `iwb configure` | Apply defconfig & post-config patches | `uv run iwb configure --target official-mt7981-ax3000m` |
 | `iwb download` | Pre-download packages (`make download`) | `uv run iwb download --target official-mt7981-ax3000m -j$(nproc)` |
 | `iwb build` | Build firmware (`make -jN`) | `uv run iwb build --target official-mt7981-ax3000m -j$(nproc) -v` |
 | `iwb digest` | Compute MD5/SHA256 checksums table | `uv run iwb digest --target official-mt7981-ax3000m` |
-| `iwb run` | **Run full end-to-end build pipeline** | `uv run iwb run --target official-mt7981-ax3000m` |
-| `iwb check-update` | Check if repo has upstream/local changes | `uv run iwb check-update --target official-mt7981-ax3000m` |
-| `iwb tools add-git-safe` | Add directory to Git `safe.directory` | `uv run iwb tools add-git-safe /path/to/workspace -r` |
+| `iwb tools check-update` | Check if repo has upstream/local changes | `uv run iwb tools check-update --target official-mt7981-ax3000m` |
 | `iwb tools ccache-stats` | Show ccache hit rate and stats | `uv run iwb tools ccache-stats --target official-mt7981-ax3000m` |
 | `iwb tools clean` | Clean build tree (`make clean/dirclean`) | `uv run iwb tools clean --target official-mt7981-ax3000m` |
-| `iwb usage` | Display workspace disk space usage | `uv run iwb usage` |
+| `iwb tools usage` | Display workspace disk space usage | `uv run iwb tools usage --target official-mt7981-ax3000m` |
 
 ---
 
@@ -136,7 +135,7 @@ defconfig = "ax3000m.config"
 
 [ccache]
 enabled = true
-max_size = "10G"
+max_size = "3.5G"
 
 [output]
 dist_dir = "official-mt7981-ax3000m"

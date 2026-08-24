@@ -31,10 +31,9 @@ url = "https://github.com/immortalwrt/immortalwrt.git"
 branch = "master"
 depth = 1
 
-[feeds]
-update = true
-install = true
-custom_feeds = ["src-git extra https://github.com/example/repo"]
+[patchConfig]
+router_ip = "192.168.1.1"
+enable_argon = true
 
 [build]
 jobs = 4
@@ -48,8 +47,8 @@ verbose = true
             self.assertEqual(target.source.url, "https://github.com/immortalwrt/immortalwrt.git")
             self.assertEqual(target.source.branch, "master")
             self.assertEqual(target.source.depth, 1)
-            self.assertTrue(target.feeds.update)
-            self.assertEqual(len(target.feeds.custom_feeds), 1)
+            self.assertEqual(target.patch_config.get("router_ip"), "192.168.1.1")
+            self.assertTrue(target.patch_config.get("enable_argon"))
             self.assertEqual(target.build.jobs, 4)
             self.assertTrue(target.build.verbose)
 
@@ -65,6 +64,10 @@ base = true
 [source]
 url = "https://github.com/immortalwrt/immortalwrt.git"
 branch = "openwrt-23.05"
+
+[patchConfig]
+base_var = "foo"
+override_var = "from_base"
 
 [build]
 jobs = 8
@@ -84,6 +87,10 @@ extends = "base"
 [source]
 branch = "master"
 
+[patchConfig]
+override_var = "from_child"
+child_var = "bar"
+
 [build]
 verbose = true
 """,
@@ -98,6 +105,9 @@ verbose = true
             self.assertEqual(target.build.jobs, 8)
             self.assertTrue(target.ccache.enabled)
             self.assertTrue(target.build.verbose)
+            self.assertEqual(target.patch_config.get("base_var"), "foo")
+            self.assertEqual(target.patch_config.get("override_var"), "from_child")
+            self.assertEqual(target.patch_config.get("child_var"), "bar")
 
             # Test specifying tag in child overrides base branch
             child_tag_file = dir_path / "child_tag.toml"

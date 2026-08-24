@@ -40,20 +40,6 @@ class BuildTests(unittest.TestCase):
             self.assertIn("CONFIG_CCACHE_DIR=", content)
             mock_run.assert_called_once_with(["make", "defconfig"], cwd=source_dir)
 
-            # 2. Without explicit ccache dir (defaults to OpenWrt default, no CONFIG_CCACHE_DIR written)
-            target_no_dir = TargetConfig(
-                name="test_no_dir",
-                source=GitSourceConfig(url="https://example.com"),
-                build=BuildConfig(defconfig_path=defconfig_file),
-                ccache=CcacheConfig(enabled=True, dir=None),
-            )
-            with mock.patch("immortalwrt_builder.builder.core.build.engine.run_command"):
-                engine.prepare_config(target_no_dir, source_dir)
-
-            content_no_dir = dot_config.read_text(encoding="utf-8")
-            self.assertIn("CONFIG_CCACHE=y", content_no_dir)
-            self.assertNotIn("CONFIG_CCACHE_DIR=", content_no_dir)
-
     def test_download_packages_runs_make_download(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source_dir = Path(temp_dir)
@@ -88,9 +74,18 @@ class BuildTests(unittest.TestCase):
 
     def test_build_firmware_ccache_activation_without_explicit_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            source_dir = Path(temp_dir)
+            work_root = Path(temp_dir)
+            source_dir = work_root / "source-code" / "test"
+            source_dir.mkdir(parents=True)
             dot_config = source_dir / ".config"
-            dot_config.write_text("CONFIG_CCACHE=y\n", encoding="utf-8")
+            dot_config.write_text(
+                'CONFIG_ARCH="aarch64"\n'
+                'CONFIG_TARGET_BOARD="mediatek"\n'
+                'CONFIG_TARGET_SUBTARGET="filogic"\n'
+                'CONFIG_GCC_VERSION="14.3.0"\n'
+                'CONFIG_LIBC="musl"\n',
+                encoding="utf-8",
+            )
 
             target = TargetConfig(
                 name="test",
@@ -104,8 +99,10 @@ class BuildTests(unittest.TestCase):
                     engine.build_firmware(target, source_dir)
 
             mock_banner.assert_called_once()
-            # Passed the default .ccache directory without mismatch error
-            self.assertEqual(mock_banner.call_args.args[0], (source_dir / ".ccache").resolve())
+            self.assertEqual(
+                mock_banner.call_args.args[0],
+                (work_root / "cache/ccache/mediatek-filogic-aarch64-musl-14.3.0").resolve(),
+            )
             mock_run.assert_called()
 
 

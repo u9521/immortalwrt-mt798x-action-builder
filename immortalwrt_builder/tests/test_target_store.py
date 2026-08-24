@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import io
 import os
 import tempfile
 import unittest
@@ -51,7 +50,7 @@ url = "https://github.com/immortalwrt/immortalwrt.git"
             with self.assertRaisesRegex(ValueError, "base config"):
                 resolver.target_config_path(project_root, "base-template")
 
-    def test_target_config_path_falls_back_to_declared_name(self) -> None:
+    def test_target_config_path_requires_exact_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_root = Path(temp_dir)
             self._write_target(
@@ -65,10 +64,12 @@ branch = "master"
 """,
             )
 
-            stdout = io.StringIO()
-            with mock.patch("sys.stdout", stdout):
-                target = resolver.load_project_target(project_root, "declared-name")
+            # Looking for 'declared-name' when file is 'different_filename.toml' raises FileNotFoundError
+            with self.assertRaises(FileNotFoundError):
+                resolver.load_project_target(project_root, "declared-name")
 
+            # Looking for 'different_filename' succeeds
+            target = resolver.load_project_target(project_root, "different_filename")
             self.assertEqual(target.name, "declared-name")
 
     def _write_target(self, project_root: Path, target_name: str, content: str) -> None:

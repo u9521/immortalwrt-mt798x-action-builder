@@ -40,17 +40,12 @@ def handle_show_target(args: argparse.Namespace) -> int:
             "depth": target.source.depth,
             "submodules": target.source.submodules,
         },
-        "feeds": {
-            "update": target.feeds.update,
-            "install": target.feeds.install,
-            "custom_feeds": target.feeds.custom_feeds,
-            "conf_file": str(target.feeds.conf_file) if target.feeds.conf_file else None,
-        },
         "patch": {
             "pre_feeds_patches": [str(p) for p in target.patch.pre_feeds_patches],
             "post_feeds_patches": [str(p) for p in target.patch.post_feeds_patches],
             "post_config_patches": [str(p) for p in target.patch.post_config_patches],
         },
+        "patch_config": target.patch_config,
         "build": {
             "defconfig_path": str(target.build.defconfig_path) if target.build.defconfig_path else None,
             "jobs": target.build.jobs,
@@ -109,9 +104,9 @@ def handle_show_target(args: argparse.Namespace) -> int:
             print(f"  Post-feeds Patches: {', '.join(p.name for p in target.patch.post_feeds_patches)}")
         if target.patch.post_config_patches:
             print(f"  Post-config Patches: {', '.join(p.name for p in target.patch.post_config_patches)}")
-        if target.feeds.custom_feeds:
-            print(f"  Custom feeds ({len(target.feeds.custom_feeds)}):")
-            for f in target.feeds.custom_feeds:
-                print(f"    - {f}")
+        if target.patch_config:
+            print(f"  Patch Config ({len(target.patch_config)} items):")
+            for k, v in target.patch_config.items():
+                print(f"    - {k}: {v}")
         print(f"  Output directory: {work_root / 'out' / (target.output.dist_dir or target.name)}\n")
     return 0

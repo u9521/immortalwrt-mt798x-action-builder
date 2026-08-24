@@ -46,20 +46,9 @@ jobs:
       - name: Install project CLI
         run: uv sync --dev
 
-      - name: Free runner disk space
-        if: false
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Show disk space
         run: |
-          sudo timedatectl set-timezone "Asia/Shanghai"
-          sudo -E swapoff -a || true
-          sudo -E rm -f /swapfile || true
-          sudo -E docker image prune -a -f || true
-          sudo -E apt-get -y purge dotnet* firefox ghc* google* llvm* mono* mysql* openjdk* php* zulu* || true
-          sudo -E apt-get -y autoremove --purge || true
-          sudo -E rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /etc/mysql /etc/php /usr/local/share/boost || true
-          [ -n "$AGENT_TOOLSDIRECTORY" ] && sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
-          echo "Disk space after cleanup:"
+          echo "Disk space after before build:"
           df -h
 
       - name: Install build toolchain dependencies
@@ -74,7 +63,7 @@ jobs:
         if: ${{ !(inputs.skipUpdateCheck || false) }}
         run: |
           target_name="${{ inputs.target }}"
-          uv run iwb check-update --target "$target_name" || {
+          uv run iwb tools check-update --target "$target_name" || {
             echo "Repositories are up to date. Skipping build."
             echo "skip_build=true" >> "$GITHUB_OUTPUT"
           }
@@ -84,19 +73,22 @@ jobs:
         if: ${{ steps.check_update.outputs.skip_build != 'true' }}
         run: |
           target_name="${{ inputs.target }}"
-          
+
           # Initialize source, feeds, and config for fingerprinting
           uv run iwb sync-source --target "$target_name"
-          uv run iwb setup-feeds --target "$target_name"
+          uv run iwb feeds-update --target "$target_name"
+          uv run iwb feeds-install --target "$target_name"
           uv run iwb configure --target "$target_name"
 
           tc_key=$(uv run iwb toolchain-key --target "$target_name")
           echo "toolchain_key=$tc_key" >> "$GITHUB_OUTPUT"
 
           ccache_dir=$(uv run iwb tools ccache-dir --target "$target_name")
+          ccache_prefix=$(basename "$ccache_dir")
           echo "ccache_dir=$ccache_dir" >> "$GITHUB_OUTPUT"
+          echo "ccache_prefix=$ccache_prefix" >> "$GITHUB_OUTPUT"
           echo "Calculated toolchain cache key: $tc_key"
-          echo "Resolved ccache directory: $ccache_dir"
+          echo "Resolved ccache directory: $ccache_dir (prefix: $ccache_prefix)"
 
       - name: Restore Toolchain Cache
         uses: actions/cache/restore@v4
@@ -112,9 +104,9 @@ jobs:
         if: ${{ steps.check_update.outputs.skip_build != 'true' }}
         with:
           path: ${{ steps.cache_info.outputs.ccache_dir }}
-          key: ccache-${{ inputs.target }}-${{ github.run_id }}
+          key: ccache-${{ steps.cache_info.outputs.ccache_prefix }}-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ inputs.target }}-
+            ccache-${{ steps.cache_info.outputs.ccache_prefix }}-
 
       - name: Apply Toolchain Cache
         if: ${{ steps.check_update.outputs.skip_build != 'true' && steps.toolchain_cache.outputs.cache-hit == 'true' }}
@@ -134,7 +126,8 @@ jobs:
             verbose_flag="--verbose"
           fi
 
-          uv run iwb run --target "$target_name" $verbose_flag
+          uv run iwb download --target "$target_name"
+          uv run iwb build --target "$target_name" $verbose_flag
 
           end_ts=$(date +%s)
           echo "duration=$((end_ts - start_ts))" >> "$GITHUB_OUTPUT"
@@ -151,7 +144,12 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ steps.cache_info.outputs.ccache_dir }}
-          key: ccache-${{ inputs.target }}-${{ github.run_id }}
+          key: ccache-${{ steps.cache_info.outputs.ccache_prefix }}-${{ github.run_id }}
+
+      - name: Show disk space
+        run: |
+          echo "Disk space after after build:"
+          df -h
 
       - name: Upload firmware artifacts
         if: ${{ steps.check_update.outputs.skip_build != 'true' }}
@@ -199,7 +197,13 @@ jobs:
           target_name="${{ inputs.target }}"
           outcome="${{ steps.build_step.outcome || 'skipped' }}"
           duration="${{ steps.build_step.outputs.duration || '0' }}"
+          toolchain_key="${{ steps.cache_info.outputs.toolchain_key || '' }}"
+          release_tag="${{ steps.generate_release_info.outputs.release_tag || '' }}"
+          release_name="${{ steps.generate_release_info.outputs.release_name || '' }}"
           uv run python immortalwrt_builder/scripts/write-ci-build-summary.py \
             --target "$target_name" \
             --outcome "$outcome" \
-            --duration-seconds "$duration"
+            --duration-seconds "$duration" \
+            --toolchain-key "$toolchain_key" \
+            --release-tag "$release_tag" \
+            --release-name "$release_name"

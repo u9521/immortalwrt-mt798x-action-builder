@@ -10,6 +10,7 @@ from pathlib import Path
 from ... import layout
 from ...utils import ensure_directory, run_command
 from ..config.schema import TargetConfig
+from .arch import extract_arch_signature
 
 
 def get_ccache_binary(source_dir: Path | None = None) -> str | None:
@@ -43,35 +44,6 @@ def is_openwrt_ccache_enabled(dot_config: Path) -> tuple[bool, str | None]:
     return enabled, config_dir
 
 
-def check_ccache_config_match(
-    dot_config: Path,
-    expected_ccache_dir: Path | None = None,
-) -> tuple[bool, str]:
-    if not dot_config.exists():
-        return False, "missing .config file"
-
-    enabled, config_dir = is_openwrt_ccache_enabled(dot_config)
-    if not enabled:
-        return False, "CONFIG_CCACHE is not enabled in .config"
-
-    if expected_ccache_dir is None:
-        return True, "matched"
-
-    if config_dir is None or not config_dir.strip():
-        return False, "CONFIG_CCACHE_DIR is empty in .config (defaults to source root .ccache)"
-
-    resolved_config_dir = Path(config_dir).resolve()
-    resolved_expected = expected_ccache_dir.resolve()
-
-    if resolved_config_dir != resolved_expected:
-        return (
-            False,
-            f"mismatched: .config has '{resolved_config_dir}', expected '{resolved_expected}'",
-        )
-
-    return True, "matched"
-
-
 def resolve_effective_ccache_dir(
     target: TargetConfig,
     work_root: Path,
@@ -86,22 +58,10 @@ def resolve_effective_ccache_dir(
         return (work_root / target.ccache.dir).resolve()
 
     if source_dir is not None:
-        dot_config = source_dir / ".config"
-        if dot_config.exists():
-            _, config_dir = is_openwrt_ccache_enabled(dot_config)
-            if config_dir and config_dir.strip():
-                return Path(config_dir).resolve()
-        return (source_dir / ".ccache").resolve()
+        arch_sig = extract_arch_signature(source_dir, target.build.defconfig_path)
+        return layout.arch_ccache_dir(work_root, arch_sig).resolve()
 
-    fallback_dir = layout.target_ccache_dir(work_root, target.name).resolve()
-    if warn_if_unset:
-        print(
-            f"\n[CCACHE WARNING] '[ccache] dir' is not explicitly specified in target config '{target.name}'.\n"
-            f"  Falling back to default cache directory: '{fallback_dir}'.\n",
-            flush=True,
-        )
-
-    return fallback_dir
+    return layout.target_ccache_dir(work_root, target.name).resolve()
 
 
 def configure_ccache_in_dot_config(dot_config: Path, ccache_dir: Path | None = None) -> None:
@@ -193,33 +153,14 @@ def setup_ccache_environment(
     if effective_base_dir is not None:
         env["CCACHE_BASEDIR"] = str(effective_base_dir)
 
-    # Write persistent ccache.conf inside the cache directory
-    ccache_conf_file = resolved_ccache_dir / "ccache.conf"
-    conf_lines = [
-        f"max_size = {target.ccache.max_size}",
-        f"compiler_check = {target.ccache.compiler_check}",
-        f"sloppiness = {target.ccache.sloppiness}",
-        f"hash_dir = {'true' if target.ccache.hash_dir else 'false'}",
-    ]
-
-    if effective_base_dir is not None:
-        conf_lines.append(f"base_dir = {effective_base_dir}")
-
     if target.ccache.log_file:
         ccache_log_file = (infos_dir / "ccache.log").resolve()
         env["CCACHE_LOGFILE"] = str(ccache_log_file)
-        conf_lines.append(f"log_file = {ccache_log_file}")
 
     if target.ccache.stats_log:
         stats_log_file = (infos_dir / "ccache-stats.log").resolve()
         env["CCACHE_STATS_LOG"] = str(stats_log_file)
-        conf_lines.append(f"stats_log = {stats_log_file}")
         print(f"  + ccache stats log directed to: {stats_log_file}", flush=True)
-
-    try:
-        ccache_conf_file.write_text("\n".join(conf_lines) + "\n", encoding="utf-8")
-    except Exception:
-        pass
 
     ccache_bin = get_ccache_binary(source_dir)
     if ccache_bin:
