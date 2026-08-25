@@ -38,12 +38,17 @@ def prepare_config(target: TargetConfig, source_dir: Path) -> Path:
     elif not dot_config.exists():
         dot_config.touch()
 
+    # Step 1: Initial make defconfig to expand OpenWrt target architecture and toolchain symbols
+    print("Generating base configuration (make defconfig)...", flush=True)
+    run_command(["make", "defconfig"], cwd=source_dir)
+
+    # Step 2: Calculate canonical architecture ccache directory from expanded .config and inject
     if target.ccache.enabled:
         ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir, warn_if_unset=False)
         configure_ccache_in_dot_config(dot_config, ccache_dir)
+        print("Finalizing configuration with ccache settings (make defconfig)...", flush=True)
+        run_command(["make", "defconfig"], cwd=source_dir)
 
-    print("Generating configuration (make defconfig)...", flush=True)
-    run_command(["make", "defconfig"], cwd=source_dir)
     return dot_config
 
 
