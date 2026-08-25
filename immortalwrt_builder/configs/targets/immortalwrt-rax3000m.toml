@@ -1,4 +1,4 @@
-name = "official-mt7981-ax3000m"
+name = "immortalwrt-rax3000m"
 extends = "immortalwrt-base"
 
 [source]
@@ -11,6 +11,6 @@ defconfig = "rax3000m-base.config"
 enabled = true
 
 [output]
-dist_dir = "official-mt7981-ax3000m"
+dist_dir = "immortalwrt-rax3000m"
 target_dir = "bin/targets/mediatek/filogic"
 packages_dir = "bin/packages"

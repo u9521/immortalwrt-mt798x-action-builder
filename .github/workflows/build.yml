@@ -9,10 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: "Target configuration name (e.g. official-mt7981-ax3000m, official-x86-64, uluawrt-mt7981-ax3000m)"
+        description: "Target configuration name (e.g. immortalwrt-rax3000m)"
         required: true
         type: string
-        default: "official-mt7981-ax3000m"
+        default: "immortalwrt-rax3000m"
       verboseBuildlog:
         description: "Enable verbose compiler output (V=s)"
         required: true
