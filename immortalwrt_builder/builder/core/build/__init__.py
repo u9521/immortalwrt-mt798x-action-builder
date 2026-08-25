@@ -19,6 +19,7 @@ from .ccache import (
     resolve_effective_ccache_dir,
     setup_ccache_environment,
     show_ccache_stats,
+    zero_ccache_stats,
 )
 from .engine import build_firmware, clean_build, download_packages, prepare_config
 from .output import collect_outputs, generate_digest_table, write_digest_summary
@@ -92,4 +93,5 @@ __all__ = [
     "show_ccache_stats",
     "touch_toolchain_stamps",
     "write_digest_summary",
+    "zero_ccache_stats",
 ]

@@ -86,6 +86,9 @@ uv run iwb tools ccache-stats --target official-mt7981-ax3000m
 # Print ccache directory path (used for CI caching)
 uv run iwb tools ccache-dir --target official-mt7981-ax3000m
 
+# Reset ccache statistics counters
+uv run iwb tools ccache-zero --target official-mt7981-ax3000m
+
 # Clear ccache
 uv run iwb tools ccache-clean --target official-mt7981-ax3000m
 

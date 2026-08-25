@@ -171,6 +171,13 @@ def setup_ccache_environment(
                 check=False,
                 capture_output=True,
             )
+            run_command(
+                [ccache_bin, "-z"],
+                env=env,
+                check=False,
+                capture_output=True,
+            )
+            print("  + ccache statistics reset (ccache -z)", flush=True)
         except Exception:
             pass
 
@@ -277,3 +284,28 @@ def clear_ccache(ccache_dir: Path, source_dir: Path | None = None) -> None:
     env["CCACHE_DIR"] = str(resolved_ccache_dir)
     print(f"Clearing ccache at {resolved_ccache_dir}...", flush=True)
     run_command([ccache_bin, "-C"], env=env, check=False)
+
+
+def zero_ccache_stats(ccache_dir: Path, source_dir: Path | None = None) -> bool:
+    ccache_bin = get_ccache_binary(source_dir)
+    if not ccache_bin:
+        print("ccache binary is not installed on host or staging_dir.", flush=True)
+        return False
+
+    resolved_ccache_dir = ccache_dir.resolve()
+    if not resolved_ccache_dir.exists() and source_dir is not None:
+        source_ccache = (source_dir / ".ccache").resolve()
+        if source_ccache.exists():
+            resolved_ccache_dir = source_ccache
+
+    ensure_directory(resolved_ccache_dir)
+    env = os.environ.copy()
+    env["CCACHE_DIR"] = str(resolved_ccache_dir)
+    print(f"Resetting ccache statistics at {resolved_ccache_dir}...", flush=True)
+    try:
+        run_command([ccache_bin, "-z"], env=env, check=False, capture_output=True)
+        return True
+    except Exception as exc:
+        print(f"Failed to reset ccache stats: {exc}", flush=True)
+        return False
+

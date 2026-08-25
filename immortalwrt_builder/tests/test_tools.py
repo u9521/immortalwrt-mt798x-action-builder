@@ -28,6 +28,20 @@ class ToolsTests(unittest.TestCase):
             self.assertEqual(ret, 0)
             self.assertIn("ccache", stdout.getvalue())
 
+    def test_handle_ccache_zero(self) -> None:
+        target = TargetConfig(name="sample-target", source=GitSourceConfig(url="https://example.com"), build=BuildConfig())
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_root = Path(temp_dir)
+            with mock.patch("immortalwrt_builder.builder.cli.commands.tools.TargetConfigProvider") as mock_provider:
+                mock_provider.return_value.load.return_value = target
+                with mock.patch("immortalwrt_builder.builder.cli.commands.tools.zero_ccache_stats", return_value=True) as mock_zero:
+                    args = mock.MagicMock(target="sample-target", work_root=str(work_root))
+                    ret = tools.handle_ccache_zero(args)
+
+            self.assertEqual(ret, 0)
+            mock_zero.assert_called_once()
+
+
     def test_handle_clean_all(self) -> None:
         target = TargetConfig(name="sample-target", source=GitSourceConfig(url="https://example.com"), build=BuildConfig())
         with tempfile.TemporaryDirectory() as temp_dir:

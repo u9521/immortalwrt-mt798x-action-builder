@@ -10,7 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from ... import layout
-from ...core.build import clean_build, clear_ccache, resolve_effective_ccache_dir, show_ccache_stats
+from ...core.build import (
+    clean_build,
+    clear_ccache,
+    resolve_effective_ccache_dir,
+    show_ccache_stats,
+    zero_ccache_stats,
+)
 from ...core.config import TargetConfigProvider
 from ...core.sync import get_local_head_commit, get_remote_head_commit
 from ...usage_report import analyze_workspace_usage, print_usage_report
@@ -50,6 +56,12 @@ def build_parser(subparsers: Any) -> None:
     add_target_argument(ccache_clean)
     add_work_root_argument(ccache_clean)
     ccache_clean.set_defaults(handler=handle_ccache_clean)
+
+    # Subcommand: ccache-zero
+    ccache_zero = tool_subparsers.add_parser("ccache-zero", help="Reset ccache statistics counters for target")
+    add_target_argument(ccache_zero)
+    add_work_root_argument(ccache_zero)
+    ccache_zero.set_defaults(handler=handle_ccache_zero)
 
     # Subcommand: check-update
     check_update = tool_subparsers.add_parser(
@@ -122,6 +134,16 @@ def handle_ccache_clean(args: argparse.Namespace) -> int:
     ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
     clear_ccache(ccache_dir, source_dir=source_dir)
     return 0
+
+
+def handle_ccache_zero(args: argparse.Namespace) -> int:
+    project_root = Path.cwd()
+    work_root = get_work_root(args, project_root)
+    target = TargetConfigProvider(project_root).load(args.target)
+    source_dir = layout.target_source_root(work_root, target.name)
+    ccache_dir = resolve_effective_ccache_dir(target, work_root, source_dir)
+    success = zero_ccache_stats(ccache_dir, source_dir=source_dir)
+    return 0 if success else 1
 
 
 def handle_check_update(args: argparse.Namespace) -> int:

@@ -180,6 +180,26 @@ class CcacheTests(unittest.TestCase):
                     ccache.clear_ccache(ccache_dir)
                     mock_run.assert_called_once_with(["/usr/bin/ccache", "-C"], env=mock.ANY, check=False)
 
+    def test_zero_ccache_stats_runs_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ccache_dir = Path(temp_dir) / "ccache"
+            ccache_dir.mkdir()
+            with mock.patch(
+                "immortalwrt_builder.builder.core.build.ccache.get_ccache_binary",
+                return_value="/usr/bin/ccache",
+            ):
+                with mock.patch("immortalwrt_builder.builder.core.build.ccache.run_command") as mock_run:
+                    mock_run.return_value = mock.MagicMock(returncode=0)
+                    success = ccache.zero_ccache_stats(ccache_dir)
+                    self.assertTrue(success)
+                    mock_run.assert_called_once_with(
+                        ["/usr/bin/ccache", "-z"],
+                        env=mock.ANY,
+                        check=False,
+                        capture_output=True,
+                    )
+
+
 
 if __name__ == "__main__":
     unittest.main()

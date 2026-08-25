@@ -144,6 +144,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertEqual(stdout.getvalue().strip(), "/tmp/ccache/dir")
 
+    def test_tools_ccache_zero_command(self) -> None:
+        target = _dummy_target("sample")
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", stdout):
+            with mock.patch("immortalwrt_builder.builder.cli.commands.tools.TargetConfigProvider") as mock_provider:
+                mock_provider.return_value.load.return_value = target
+                with mock.patch(
+                    "immortalwrt_builder.builder.cli.commands.tools.zero_ccache_stats",
+                    return_value=True,
+                ) as mock_zero:
+                    ret = main(["tools", "ccache-zero", "--target", "sample"])
+
+        self.assertEqual(ret, 0)
+        mock_zero.assert_called_once()
+
+
 
 if __name__ == "__main__":
     unittest.main()
