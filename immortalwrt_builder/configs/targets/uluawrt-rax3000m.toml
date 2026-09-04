@@ -1,0 +1,44 @@
+name = "uluawrt-rax3000m"
+extends = "immortalwrt-base"
+
+[patch]
+post_feeds_patches = ["router_customization.py"]
+
+[patchConfig]
+router_ip = "192.168.10.1"
+hostname = "uluaWrt"
+description_prefix = "uluaWrt"
+author = "By ulua"
+include_date = true
+
+wifi_ssid = "uluaWrt"
+wifi_ssid_2g = "uluaWrt-2.4G"
+wifi_ssid_5g = "uluaWrt-5G"
+
+enable_ttyd_ssl = true
+disable_collectd_stats = true
+disable_dns_redirect = true
+
+[patchConfig.argon]
+primary = "#5e72e4"
+dark_primary = "#483d8b"
+mode = "normal"
+online_wallpaper = "none"
+transparency = "0.5"
+blur = "10"
+blur_dark = "10"
+transparency_dark = "0.5"
+
+[source]
+tag = "v25.12.1"
+
+[build]
+defconfig = "rax3000m-ulua.config"
+
+[ccache]
+enabled = true
+
+[output]
+dist_dir = "uluawrt-rax3000m"
+target_dir = "bin/targets/mediatek/filogic"
+packages_dir = "bin/packages"

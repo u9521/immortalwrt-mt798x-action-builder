@@ -23,7 +23,9 @@ class GitSyncTests(unittest.TestCase):
 
             commands = [call.args[0] for call in mock_run.call_args_list]
             self.assertEqual(commands[0], ["git", "init"])
-            self.assertEqual(commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"])
+            self.assertEqual(
+                commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"]
+            )
             self.assertEqual(commands[2], ["git", "fetch", "--depth", "1", "origin", "openwrt-25.12"])
             self.assertEqual(commands[3], ["git", "checkout", "-B", "openwrt-25.12", "FETCH_HEAD"])
 
@@ -36,7 +38,9 @@ class GitSyncTests(unittest.TestCase):
 
             commands = [call.args[0] for call in mock_run.call_args_list]
             self.assertEqual(commands[0], ["git", "init"])
-            self.assertEqual(commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"])
+            self.assertEqual(
+                commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"]
+            )
             self.assertEqual(commands[2], ["git", "fetch", "--depth", "1", "origin", "abc123456789"])
             self.assertEqual(commands[3], ["git", "checkout", "FETCH_HEAD"])
 
@@ -49,8 +53,12 @@ class GitSyncTests(unittest.TestCase):
 
             commands = [call.args[0] for call in mock_run.call_args_list]
             self.assertEqual(commands[0], ["git", "init"])
-            self.assertEqual(commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"])
-            self.assertEqual(commands[2], ["git", "fetch", "--depth", "1", "origin", "refs/tags/v25.12.0:refs/tags/v25.12.0"])
+            self.assertEqual(
+                commands[1], ["git", "remote", "add", "origin", "https://github.com/immortalwrt/immortalwrt.git"]
+            )
+            self.assertEqual(
+                commands[2], ["git", "fetch", "--depth", "1", "origin", "refs/tags/v25.12.0:refs/tags/v25.12.0"]
+            )
             self.assertEqual(commands[3], ["git", "checkout", "refs/tags/v25.12.0"])
 
     def test_clone_or_fetch_repo_updates_existing_repo(self) -> None:
@@ -62,7 +70,9 @@ class GitSyncTests(unittest.TestCase):
                 git.clone_or_fetch_repo(source, dest)
 
             commands = [call.args[0] for call in mock_run.call_args_list]
-            self.assertEqual(commands[0], ["git", "remote", "set-url", "origin", "https://github.com/immortalwrt/immortalwrt.git"])
+            self.assertEqual(
+                commands[0], ["git", "remote", "set-url", "origin", "https://github.com/immortalwrt/immortalwrt.git"]
+            )
             self.assertEqual(commands[1], ["git", "fetch", "--depth", "1", "origin", "master"])
             self.assertEqual(commands[2], ["git", "checkout", "-B", "master", "FETCH_HEAD"])
 

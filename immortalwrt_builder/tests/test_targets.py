@@ -14,17 +14,16 @@ class CheckedInTargetsTests(unittest.TestCase):
 
     def test_list_targets_returns_expected_targets(self) -> None:
         targets = self.provider.list_targets()
-        self.assertIn("official-mt7981-ax3000m", targets)
-        self.assertIn("official-x86-64", targets)
-        self.assertIn("official-generic", targets)
+        self.assertIn("immortalwrt-rax3000m", targets)
         self.assertIn("uluawrt-mt7981-ax3000m", targets)
+        self.assertIn("uluawrt-rax3000m", targets)
         # Base targets must not be in selectable targets
         self.assertNotIn("immortalwrt-base", targets)
         self.assertNotIn("mt798x-base", targets)
 
-    def test_load_official_mt7981_target(self) -> None:
-        target = self.provider.load("official-mt7981-ax3000m")
-        self.assertEqual(target.name, "official-mt7981-ax3000m")
+    def test_load_immortalwrt_rax3000m_target(self) -> None:
+        target = self.provider.load("immortalwrt-rax3000m")
+        self.assertEqual(target.name, "immortalwrt-rax3000m")
         self.assertFalse(target.base)
         self.assertEqual(target.source.url, "https://github.com/immortalwrt/immortalwrt.git")
         self.assertTrue(bool(target.source.tag or target.source.branch))
@@ -32,14 +31,16 @@ class CheckedInTargetsTests(unittest.TestCase):
         assert target.build.defconfig_path is not None
         self.assertTrue(target.build.defconfig_path.exists())
 
-    def test_load_official_x86_64_target(self) -> None:
-        target = self.provider.load("official-x86-64")
-        self.assertEqual(target.name, "official-x86-64")
+    def test_load_uluawrt_rax3000m_target(self) -> None:
+        target = self.provider.load("uluawrt-rax3000m")
+        self.assertEqual(target.name, "uluawrt-rax3000m")
         self.assertFalse(target.base)
         self.assertEqual(target.source.url, "https://github.com/immortalwrt/immortalwrt.git")
         self.assertIsNotNone(target.build.defconfig_path)
         assert target.build.defconfig_path is not None
         self.assertTrue(target.build.defconfig_path.exists())
+        self.assertEqual(len(target.patch.post_feeds_patches), 1)
+        self.assertEqual(target.patch.post_feeds_patches[0].name, "router_customization.py")
 
     def test_load_uluawrt_target(self) -> None:
         target = self.provider.load("uluawrt-mt7981-ax3000m")

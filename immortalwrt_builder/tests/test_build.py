@@ -93,7 +93,9 @@ class BuildTests(unittest.TestCase):
                 res.returncode = 0
                 return res
 
-            with mock.patch("immortalwrt_builder.builder.core.build.engine.run_command", side_effect=mock_defconfig_side_effect):
+            with mock.patch(
+                "immortalwrt_builder.builder.core.build.engine.run_command", side_effect=mock_defconfig_side_effect
+            ):
                 engine.prepare_config(target, source_dir)
 
             dot_config = source_dir / ".config"

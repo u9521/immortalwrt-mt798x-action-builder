@@ -308,4 +308,3 @@ def zero_ccache_stats(ccache_dir: Path, source_dir: Path | None = None) -> bool:
     except Exception as exc:
         print(f"Failed to reset ccache stats: {exc}", flush=True)
         return False
-

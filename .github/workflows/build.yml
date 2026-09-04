@@ -12,7 +12,7 @@ on:
         description: "Target configuration name (e.g. immortalwrt-rax3000m)"
         required: true
         type: string
-        default: "immortalwrt-rax3000m"
+        default: "uluawrt-rax3000m"
       verboseBuildlog:
         description: "Enable verbose compiler output (V=s)"
         required: true

@@ -25,7 +25,7 @@ def load_project_target(project_root: Path, target_name: str) -> TargetConfig:
 
 
 def target_config_path(project_root: Path, target_name: str) -> Path:
-    path = layout.target_config_file(project_root, target_name)
+    path = layout.target_config_file(project_root, target_name.removesuffix(".toml"))
     if not path.exists():
         raise FileNotFoundError(f"Target config not found: {path}")
 
